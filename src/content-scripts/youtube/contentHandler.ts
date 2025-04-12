@@ -68,9 +68,16 @@ export async function loadAndDisplaySummary(): Promise<void> {
   showLoading(summaryContentElement, "Generating Summary");
 
   try {
-    // Check if we have transcript data
+    // ✅ CHECK IF USER IS LOGGED IN FIRST
+    const isLoggedIn = await isUserLoggedIn();
+    if (!isLoggedIn) {
+      console.warn("User not authenticated — login required");
+      showLoginRequired(summaryContentElement); // Shows login UI or prompt
+      return;
+    }
+
+    // Load transcript if needed
     if (!transcriptData) {
-      // Try to load transcript first
       const transcriptResponse = await extractTranscript();
 
       if (!transcriptResponse.success || !transcriptResponse.data) {
@@ -89,8 +96,6 @@ export async function loadAndDisplaySummary(): Promise<void> {
       document.querySelector("h1.title")?.textContent?.trim() ||
       document.querySelector("h1.ytd-watch-metadata")?.textContent?.trim() ||
       "YouTube Video";
-
-    // Get channel name if available
     const channelElement = document.querySelector(
       "#top-row .ytd-channel-name a, #channel-name a"
     );
@@ -102,13 +107,9 @@ export async function loadAndDisplaySummary(): Promise<void> {
       channelName,
     });
 
-    // Convert transcript segments to plain text for the API
-    const transcriptText = transcriptData
-      .map((segment) => segment.text)
-      .join(" ");
+    const transcriptText = transcriptData.map((s) => s.text).join(" ");
 
-    // Call the API with proper metadata
-    const summaryResponse = await generateSummary(transcriptData, {
+    const summaryResponse = await generateSummary(transcriptText, {
       videoId,
       title: videoTitle,
       url: videoUrl,
@@ -116,14 +117,10 @@ export async function loadAndDisplaySummary(): Promise<void> {
     });
 
     if (!summaryResponse.success || !summaryResponse.data) {
-      console.error("Summary generation failed:", summaryResponse.error);
       throw new Error(summaryResponse.error || "Failed to generate summary");
     }
 
-    // Store summary data
     summaryData = summaryResponse.data;
-
-    // Display the summary
     displaySummary(summaryContentElement, summaryData);
 
     console.log("Summary loaded successfully");

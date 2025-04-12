@@ -5,6 +5,9 @@
 
 // src/utils/api.ts - Config section
 // Base URL for the Knugget API - Update this to point to your backend
+
+import { supabase } from "./auth"; // Ensure this exports the initialized Supabase client
+
 const API_BASE_URL = "http://localhost:3000/api"; // Update this with your actual server URL
 
 // API endpoints - Make sure these match your backend routes
@@ -414,12 +417,12 @@ export async function getUserProfile(): Promise<ApiResponse<UserInfo>> {
 
 /**
  * Generate summary from transcript
- * @param transcript Transcript segments
+ * @param content Transcript text
  * @param metadata Video metadata
- * @returns Promise resolving to API response with summary
+ * @returns API response with summary
  */
 export async function generateSummary(
-  transcript: TranscriptSegment[],
+  content: string,
   metadata: {
     videoId: string;
     title: string;
@@ -429,12 +432,9 @@ export async function generateSummary(
 ): Promise<ApiResponse<Summary>> {
   try {
     console.log("API: Generating summary", {
-      transcriptSegments: transcript.length,
       metadata,
+      contentLength: content.length,
     });
-
-    // Convert transcript segments to plain text
-    const content = transcript.map((segment) => segment.text).join(" ");
 
     const response = await apiRequest<Summary>(
       ENDPOINTS.SUMMARIZE,
@@ -446,7 +446,7 @@ export async function generateSummary(
           source: "youtube",
         },
       },
-      false
+      true // ✅ This ensures token is attached via getAuthToken
     );
 
     console.log("API: Summary response", response);

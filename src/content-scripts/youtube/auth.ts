@@ -1,4 +1,10 @@
-import { decodeJWT } from './utils';
+import { createClient } from "@supabase/supabase-js";
+import { decodeJWT } from "./utils";
+
+// Create and export the Supabase client
+const supabaseUrl = "https://jljdlmxwynhnqaecyetm.supabase.co"; // Replace with your actual Supabase URL
+const supabaseKey ="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsamRsbXh3eW5obnFhZWN5ZXRtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQwMzgwOTIsImV4cCI6MjA1OTYxNDA5Mn0.MgV3TN6xN4-7WqpQ7d6gFzbtLfx2pnMrwoasRxwbJB0"; // Replace with your actual Supabase key
+export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Get authentication token from storage
 export async function getAuthToken(): Promise<string | null> {

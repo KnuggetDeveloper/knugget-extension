@@ -4,26 +4,29 @@
     "description": "AI-powered content summarization with centralized dashboard",
     "main": "dist/background.js",
     "scripts": {
-      "build": "webpack --config webpack.config.js",
-      "watch": "webpack --config webpack.config.js --watch",
-      "check-types": "tsc --noEmit"
+        "build": "webpack --config webpack.config.js",
+        "watch": "webpack --config webpack.config.js --watch",
+        "check-types": "tsc --noEmit"
     },
     "keywords": [
-      "chrome-extension",
-      "ai",
-      "summarization",
-      "youtube"
+        "chrome-extension",
+        "ai",
+        "summarization",
+        "youtube"
     ],
     "author": "Knugget Team",
     "license": "MIT",
     "devDependencies": {
-      "@types/chrome": "^0.0.254",
-      "copy-webpack-plugin": "^11.0.0",
-      "css-loader": "^6.8.1",
-      "mini-css-extract-plugin": "^2.7.6",
-      "ts-loader": "^9.4.4",
-      "typescript": "^5.2.2",
-      "webpack": "^5.88.2",
-      "webpack-cli": "^5.1.4"
+        "@types/chrome": "^0.0.254",
+        "copy-webpack-plugin": "^11.0.0",
+        "css-loader": "^6.8.1",
+        "mini-css-extract-plugin": "^2.7.6",
+        "ts-loader": "^9.4.4",
+        "typescript": "^5.2.2",
+        "webpack": "^5.88.2",
+        "webpack-cli": "^5.1.4"
+    },
+    "dependencies": {
+        "@supabase/supabase-js": "^2.49.4"
     }
-  }
+}
