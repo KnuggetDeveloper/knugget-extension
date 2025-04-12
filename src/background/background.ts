@@ -3,9 +3,8 @@
  * Handles events from content scripts and manages authentication state
  */
 
-// Import types from API file if needed
-
 // Base URL for the Knugget website/app
+// CHANGE: Updated to point to the correct server running on port 3000
 const WEBSITE_BASE_URL = "http://localhost:8000";
 
 // Record of open tabs that have the Knugget extension active

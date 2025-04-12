@@ -8,7 +8,8 @@
 
 import { supabase } from "./auth"; // Ensure this exports the initialized Supabase client
 
-const API_BASE_URL = "http://localhost:3000/api"; // Update this with your actual server URL
+// CHANGE: Updated API base URL to match the server port
+const API_BASE_URL = "http://localhost:3000/api";
 
 // API endpoints - Make sure these match your backend routes
 const ENDPOINTS = {
@@ -31,7 +32,9 @@ export async function deleteSummary(
 ): Promise<ApiResponse<{ success: boolean }>> {
   return apiRequest<{ success: boolean }>(
     `${ENDPOINTS.SAVED_SUMMARIES}/${summaryId}`,
-    "DELETE"
+    "DELETE",
+    null,
+    true // CHANGE: Added true to ensure auth token is sent
   );
 }
 
@@ -43,7 +46,7 @@ export async function deleteSummary(
 export async function getSummaryById(
   summaryId: string
 ): Promise<ApiResponse<Summary>> {
-  return apiRequest<Summary>(`${ENDPOINTS.SAVED_SUMMARIES}/${summaryId}`);
+  return apiRequest<Summary>(`${ENDPOINTS.SAVED_SUMMARIES}/${summaryId}`, "GET", null, true);
 }
 
 /**
@@ -62,10 +65,12 @@ export function getUserFriendlyError(error: string): string {
       "You've reached the request limit. Please try again later",
     "Failed to generate summary":
       "Unable to generate summary. The video might be too long or content unclear",
+    "Database error finding user": "Server error. Please try again later or contact support.",
   };
 
   return errorMap[error] || error || "An unknown error occurred";
 }
+
 // User information type
 export interface UserInfo {
   id: string;
@@ -113,6 +118,13 @@ export async function getAuthToken(): Promise<string | null> {
       if (result.knuggetUserInfo) {
         const userInfo = result.knuggetUserInfo as UserInfo;
 
+        // CHANGE: Add debugging for token info
+        console.log("Token info:", {
+          exists: !!userInfo.token,
+          expiresAt: new Date(userInfo.expiresAt).toISOString(),
+          expired: userInfo.expiresAt < Date.now()
+        });
+
         // Check if token is expired (with 5-minute buffer)
         if (userInfo.expiresAt < Date.now() + 300000) {
           // Try to refresh token if it's expired or about to expire
@@ -157,7 +169,7 @@ export async function apiRequest<T>(
   endpoint: string,
   method: string = "GET",
   data?: any,
-  requiresAuth: boolean = false,
+  requiresAuth: boolean = true, // CHANGE: Default to true for safer requests
   retryCount: number = 1
 ): Promise<ApiResponse<T>> {
   try {
@@ -170,8 +182,23 @@ export async function apiRequest<T>(
       const token = await getAuthToken();
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
+      } else if (requiresAuth) {
+        // CHANGE: Return early if token is required but not available
+        console.warn("Auth token required but not available for request:", endpoint);
+        return {
+          success: false,
+          error: "Authentication required. Please log in.",
+          status: 401,
+        };
       }
     }
+
+    // CHANGE: Log request details for debugging
+    console.log(`Making API request to: ${API_BASE_URL}${endpoint}`, {
+      method,
+      requiresAuth,
+      hasAuthHeader: !!headers["Authorization"]
+    });
 
     // Make the request
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -184,10 +211,12 @@ export async function apiRequest<T>(
     if (!response.ok) {
       // Check for token expiration (401)
       if (response.status === 401 && requiresAuth && retryCount > 0) {
+        console.log("Token expired, attempting refresh...");
         // Try to refresh token and retry
         const refreshedToken = await refreshAndGetToken();
 
         if (refreshedToken) {
+          console.log("Token refreshed successfully, retrying request");
           // Retry with new token
           return apiRequest<T>(
             endpoint,
@@ -206,8 +235,10 @@ export async function apiRequest<T>(
         errorMessage =
           errorResponse.error ||
           `Request failed with status ${response.status}`;
+        console.error("API request failed:", errorMessage, errorResponse);
       } catch (jsonError) {
         errorMessage = `Request failed with status ${response.status}`;
+        console.error("API request failed with no json response:", response.status);
       }
 
       return {
@@ -219,6 +250,7 @@ export async function apiRequest<T>(
 
     // Parse the JSON response
     const result = await response.json();
+    console.log("API request succeeded:", endpoint, result);
 
     return {
       success: true,
@@ -226,6 +258,7 @@ export async function apiRequest<T>(
       status: response.status,
     };
   } catch (error) {
+    console.error("API request error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
@@ -321,7 +354,7 @@ export async function login(
     ENDPOINTS.LOGIN,
     "POST",
     { email, password },
-    false
+    false // Authentication not required for login
   );
 
   if (response.success && response.data) {
@@ -329,6 +362,13 @@ export async function login(
     if (!response.data.expiresAt) {
       response.data.expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
     }
+
+    // CHANGE: Log successful login
+    console.log("Login successful, storing user info:", {
+      email: response.data.email,
+      tokenExists: !!response.data.token,
+      expiresAt: new Date(response.data.expiresAt).toISOString()
+    });
 
     // Store user info in Chrome storage
     chrome.storage.local.set({ knuggetUserInfo: response.data });
@@ -355,11 +395,14 @@ export async function register(
   password: string,
   name: string
 ): Promise<ApiResponse<UserInfo>> {
+  // CHANGE: Log registration attempt
+  console.log("Attempting registration for:", email);
+
   const response = await apiRequest<UserInfo>(
     ENDPOINTS.REGISTER,
     "POST",
     { email, password, name },
-    false
+    false // Authentication not required for registration
   );
 
   if (response.success && response.data) {
@@ -367,6 +410,13 @@ export async function register(
     if (!response.data.expiresAt) {
       response.data.expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
     }
+
+    // CHANGE: Log successful registration
+    console.log("Registration successful, storing user info:", {
+      email: response.data.email,
+      tokenExists: !!response.data.token,
+      expiresAt: new Date(response.data.expiresAt).toISOString()
+    });
 
     // Store user info in Chrome storage
     chrome.storage.local.set({ knuggetUserInfo: response.data });
@@ -412,7 +462,7 @@ export async function logout(): Promise<boolean> {
  * @returns Promise resolving to API response with user info
  */
 export async function getUserProfile(): Promise<ApiResponse<UserInfo>> {
-  return apiRequest<UserInfo>(ENDPOINTS.USER_PROFILE);
+  return apiRequest<UserInfo>(ENDPOINTS.USER_PROFILE, "GET", null, true);
 }
 
 /**
@@ -446,7 +496,7 @@ export async function generateSummary(
           source: "youtube",
         },
       },
-      true // ✅ This ensures token is attached via getAuthToken
+      true // Ensures token is attached via getAuthToken
     );
 
     console.log("API: Summary response", response);
@@ -472,7 +522,7 @@ export async function generateSummary(
 export async function saveSummary(
   summary: Summary
 ): Promise<ApiResponse<{ id: string }>> {
-  return apiRequest<{ id: string }>(ENDPOINTS.SAVE_SUMMARY, "POST", summary);
+  return apiRequest<{ id: string }>(ENDPOINTS.SAVE_SUMMARY, "POST", summary, true);
 }
 
 /**
@@ -497,5 +547,5 @@ export async function getSavedSummaries(
     total: number;
     page: number;
     limit: number;
-  }>(`${ENDPOINTS.SAVED_SUMMARIES}?page=${page}&limit=${limit}`);
+  }>(`${ENDPOINTS.SAVED_SUMMARIES}?page=${page}&limit=${limit}`, "GET", null, true);
 }
