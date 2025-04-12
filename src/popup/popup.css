@@ -1,0 +1,39 @@
+/* Add this to your popup.css */
+
+.user-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-credits {
+  font-size: 11px;
+  padding: 2px 6px;
+  background-color: #506478;
+  color: white;
+  border-radius: 12px;
+}
+
+.premium-btn svg {
+  color: #E4B70B;
+}
+
+/* Make sure this is included in your existing styles */
+.user-plan-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  background-color: var(--primary-color);
+  color: white;
+  border-radius: 12px;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .user-credits {
+    background-color: #506478;
+  }
+  
+  .premium-btn {
+    border-color: #E4B70B;
+  }
+}

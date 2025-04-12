@@ -1,0 +1,348 @@
+/* Knugget AI Extension Styling */
+
+/* Base styles */
+.knugget-extension {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  margin-bottom: 16px;
+}
+
+.knugget-summary-widget {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Container */
+#knugget-container {
+  margin-bottom: 16px;
+}
+
+/* Button styles */
+#knugget-container button {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  border: none;
+}
+
+#knugget-container button:hover {
+  opacity: 0.9;
+}
+
+#knugget-container button:focus {
+  outline: none;
+}
+
+/* Main box */
+.knugget-box {
+  background-color: #0f0f0f;
+  border: 1px solid #2d2d2d;
+  color: #fff;
+}
+
+/* Header */
+.knugget-box .header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #2d2d2d;
+}
+
+.knugget-box .logo {
+  display: flex;
+  align-items: center;
+}
+
+.knugget-box .logo svg {
+  margin-right: 8px;
+}
+
+/* Tab navigation */
+.knugget-tab,
+#transcript-tab,
+#summary-tab {
+  padding: 10px 16px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  text-align: center;
+  flex: 1;
+  background-color: transparent;
+}
+
+#transcript-tab.active,
+#summary-tab.active {
+  border-bottom-color: #00b894;
+  background-color: #1a1a1a;
+  color: #fff;
+}
+
+#transcript-tab,
+#summary-tab {
+  color: #a0a0a0;
+  background-color: #0f0f0f;
+}
+
+#transcript-tab:hover,
+#summary-tab:hover {
+  background-color: #1a1a1a;
+}
+
+/* Content sections */
+#transcript-content,
+#summary-content {
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  background-color: #0f0f0f;
+  padding: 0;
+}
+
+/* Custom scrollbar */
+#transcript-content::-webkit-scrollbar,
+#summary-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+#transcript-content::-webkit-scrollbar-track,
+#summary-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+#transcript-content::-webkit-scrollbar-thumb,
+#summary-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 184, 148, 0.5);
+  border-radius: 4px;
+}
+
+/* Transcript segments */
+.transcript-segment {
+  margin: 0;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 0.2s;
+}
+
+.transcript-segment:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.transcript-segment .flex {
+  display: flex;
+  align-items: flex-start;
+}
+
+.segment-timestamp {
+  color: #00b894;
+  font-weight: 600;
+  font-size: 12px;
+  font-family: 'Courier New', monospace;
+  margin-right: 10px;
+  display: inline-block;
+  min-width: 50px;
+  user-select: none;
+}
+
+.segment-text {
+  line-height: 1.5;
+  font-size: 14px;
+  color: #e0e0e0;
+  margin: 0;
+  font-weight: 400;
+}
+
+/* Summary section styling */
+#summary-content h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 16px;
+  color: #fff;
+}
+
+#summary-content h4 {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0 16px 8px;
+  color: #00b894;
+}
+
+#summary-content ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 16px 16px;
+}
+
+#summary-content p {
+  margin: 0 16px 16px;
+  line-height: 1.6;
+  color: #e0e0e0;
+}
+
+/* Loading spinner */
+.knugget-spinner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 184, 148, 0.1);
+  border-top-color: #00b894;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Login button */
+#knugget-login-btn, 
+#save-summary-btn,
+#retry-btn {
+  background-color: #00b894;
+  color: white;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+#knugget-login-btn:hover,
+#save-summary-btn:hover,
+#retry-btn:hover {
+  background-color: #00a28a;
+}
+
+/* Footer */
+.knugget-box .footer {
+  padding: 8px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #2d2d2d;
+}
+
+.knugget-box .footer .text {
+  color: #888;
+  font-size: 12px;
+}
+
+.knugget-box .footer a {
+  color: #00b894;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.knugget-box .footer a:hover {
+  text-decoration: underline;
+}
+
+/* Error state */
+.error-container {
+  text-align: center;
+  padding: 24px 16px;
+}
+
+.error-container svg {
+  color: #ff5252;
+  margin-bottom: 12px;
+}
+
+.error-container p {
+  color: #e0e0e0;
+  margin-bottom: 16px;
+}
+
+/* Diamond icon pulsing animation */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.knugget-box svg path[fill="#00b894"] {
+  animation: pulse 2s infinite ease-in-out;
+}
+
+/* Settings button */
+#knugget-settings-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  color: #888;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+#knugget-settings-btn:hover {
+  color: #fff;
+}
+
+/* Save summary button */
+#save-summary-btn {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+/* Key points styling */
+#summary-content ul li {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: flex-start;
+}
+
+#summary-content ul li span:first-child {
+  color: #00b894;
+  margin-right: 8px;
+}
+
+/* Loading, error and login states */
+.flex.flex-col.items-center.justify-center {
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.flex.flex-col.items-center.justify-center p.text-base {
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+.flex.flex-col.items-center.justify-center p.text-sm {
+  color: #a0a0a0;
+  margin-bottom: 16px;
+}
+
+/* Media query for dark mode */
+@media (prefers-color-scheme: dark) {
+  .knugget-box {
+    background-color: #0f0f0f;
+    border-color: #2d2d2d;
+  }
+  
+  .segment-text {
+    color: #e0e0e0;
+  }
+}
+
+/* Media query for light mode */
+@media (prefers-color-scheme: light) {
+  .knugget-box {
+    background-color: #0f0f0f;
+    border-color: #2d2d2d;
+  }
+
+  .segment-text {
+    color: #e0e0e0;
+  }
+}

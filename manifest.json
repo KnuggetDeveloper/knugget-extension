@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Knugget AI",
+  "version": "0.1.0",
+  "description": "AI-powered content summarization with centralized dashboard",
+  "permissions": ["storage", "identity", "tabs", "scripting", "notifications"],
+  "host_permissions": ["https://www.youtube.com/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/watch*"],
+      "js": ["youtube.js"],
+      "css": ["style.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "externally_connectable": {
+    "matches": [
+      "http://localhost:*/*",
+      "http://localhost:3000/*",
+      "http://localhost:8000/*"
+    ]
+  }
+}
