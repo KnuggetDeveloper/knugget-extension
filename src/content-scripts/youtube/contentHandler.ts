@@ -6,8 +6,7 @@ import {
   showLoginRequired,
   displaySummary,
 } from "./ui";
-import { isUserLoggedIn } from "./auth";
-import { generateSummary } from "./api";
+import { generateSummary, isUserLoggedIn } from "./api";
 
 // Global variables for tracking data
 let transcriptData: TranscriptSegment[] | null = null;
@@ -107,6 +106,7 @@ export async function loadAndDisplaySummary(): Promise<void> {
       channelName,
     });
 
+    // Combine all transcript segments into one text string
     const transcriptText = transcriptData.map((s) => s.text).join(" ");
 
     const summaryResponse = await generateSummary(transcriptText, {
@@ -120,8 +120,20 @@ export async function loadAndDisplaySummary(): Promise<void> {
       throw new Error(summaryResponse.error || "Failed to generate summary");
     }
 
-    summaryData = summaryResponse.data;
-    displaySummary(summaryContentElement, summaryData);
+    // Ensure the data structure is valid
+    const summaryResult = {
+      title: summaryResponse.data.title || videoTitle,
+      keyPoints: Array.isArray(summaryResponse.data.keyPoints)
+        ? summaryResponse.data.keyPoints
+        : [],
+      fullSummary: summaryResponse.data.fullSummary || "No summary available.",
+    };
+
+    // Store summary data
+    summaryData = summaryResult;
+
+    // Display the summary
+    displaySummary(summaryContentElement, summaryResult);
 
     console.log("Summary loaded successfully");
   } catch (error) {

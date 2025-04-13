@@ -249,41 +249,88 @@ chrome.runtime.onMessageExternal.addListener(
     console.log("External message received:", message, "from:", sender.url);
 
     if (message.type === "KNUGGET_AUTH_SUCCESS") {
-      // Store user info from the frontend
-      console.log("Received auth success message:", message.payload);
+      // Validate payload
+      if (!message.payload) {
+        console.error("Empty payload received");
+        sendResponse({ success: false, error: "Empty payload" });
+        return true;
+      }
 
-      if (message.payload && message.payload.token) {
-        // Store Supabase token and user info
-        chrome.storage.local.set(
-          {
-            knuggetUserInfo: message.payload,
-          },
-          () => {
-            // Check if data was stored properly
-            chrome.storage.local.get(["knuggetUserInfo"], (result) => {
-              console.log(
-                "Auth data stored:",
-                result.knuggetUserInfo ? "Success" : "Failed"
-              );
+      if (!message.payload.token) {
+        console.error("No token in payload:", message.payload);
+        sendResponse({ success: false, error: "No token provided" });
+        return true;
+      }
 
+      if (
+        !message.payload.id &&
+        (!message.payload.user || !message.payload.user.id)
+      ) {
+        console.error("No user ID in payload:", message.payload);
+        sendResponse({ success: false, error: "No user ID provided" });
+        return true;
+      }
+
+      // Create a consistent user info object
+      const userInfo = {
+        id: message.payload.id || message.payload.user?.id,
+        email: message.payload.email || message.payload.user?.email,
+        name: message.payload.name || message.payload.user?.name || "",
+        token: message.payload.token,
+        expiresAt:
+          message.payload.expiresAt || Date.now() + 24 * 60 * 60 * 1000,
+        credits: message.payload.credits || message.payload.user?.credits || 0,
+        plan: message.payload.plan || "free",
+      };
+
+      console.log("Storing user info:", {
+        id: userInfo.id,
+        email: userInfo.email,
+        tokenPresent: !!userInfo.token,
+        tokenLength: userInfo.token ? userInfo.token.length : 0,
+        expiresAt: new Date(userInfo.expiresAt).toISOString(),
+      });
+
+      // Store Supabase token and user info
+      chrome.storage.local.set(
+        {
+          knuggetUserInfo: userInfo,
+        },
+        () => {
+          if (chrome.runtime.lastError) {
+            console.error("Error storing auth data:", chrome.runtime.lastError);
+            sendResponse({
+              success: false,
+              error: chrome.runtime.lastError.message,
+            });
+            return;
+          }
+
+          // Check if data was stored properly
+          chrome.storage.local.get(["knuggetUserInfo"], (result) => {
+            const success = !!result.knuggetUserInfo;
+            console.log("Auth data stored:", success ? "Success" : "Failed");
+
+            if (success) {
               // Broadcast auth change to all tabs
               broadcastAuthStateChange(true);
-
               // Send success response
               sendResponse({ success: true });
-            });
-          }
-        );
-      } else {
-        console.error("Invalid auth payload received");
-        sendResponse({ success: false, error: "Invalid auth data" });
-      }
+            } else {
+              sendResponse({
+                success: false,
+                error: "Failed to store user data",
+              });
+            }
+          });
+        }
+      );
 
       return true; // Keep the message channel open for async response
     }
 
-    // For debugging - log any other message types received
-    console.log("Unhandled external message type:", message.type);
+    // Default response for unhandled message types
+    sendResponse({ success: false, error: "Unhandled message type" });
     return true;
   }
 );

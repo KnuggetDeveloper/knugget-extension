@@ -1,5 +1,5 @@
-import { Summary, UI_ELEMENTS } from './types';
-import { saveSummary } from './api';
+import { Summary, UI_ELEMENTS } from "./types";
+import { saveSummary } from "./api";
 
 // Function to show loading state in transcript/summary container
 export function showLoading(
@@ -96,16 +96,25 @@ export function displaySummary(
   summaryContentElement: HTMLElement,
   summary: Summary
 ): void {
-  // Create HTML for key points
-  const keyPointsHTML = summary.keyPoints
-    .map(
-      (point) => `<li class="mb-3 flex items-start">
-                     <span class="inline-block mr-2 text-teal-400">•</span>
-                     <span>${point}</span>
-                   </li>`
-    )
-    .join("");
+  // First, check and normalize the summary data
+  const normalizedSummary = {
+    title: summary.title || "Video Summary",
+    keyPoints: Array.isArray(summary.keyPoints) ? summary.keyPoints : [],
+    fullSummary: summary.fullSummary || "No summary content available.",
+  };
 
+  // Create HTML for key points - with proper null checking
+  const keyPointsHTML =
+    normalizedSummary.keyPoints.length > 0
+      ? normalizedSummary.keyPoints
+          .map(
+            (point) => `<li class="mb-3 flex items-start">
+                         <span class="inline-block mr-2 text-teal-400">•</span>
+                         <span>${point}</span>
+                       </li>`
+          )
+          .join("")
+      : "<li class='mb-3'>No key points available</li>";
   // Get video ID for generating the share URL
   const videoId = new URLSearchParams(window.location.search).get("v") || "";
   const shareUrl = `https://your-production-frontend.com/summary/${videoId}?ref=ext`;
@@ -411,9 +420,9 @@ export function injectKnuggetPanel(targetElement: HTMLElement): void {
 
   // Add the container to the target element
   targetElement.prepend(knuggetContainer);
-  
+
   // Import from main.ts to avoid circular dependencies
-  import('./main').then(module => {
+  import("./main").then((module) => {
     module.initPanelAfterInjection();
   });
 }
