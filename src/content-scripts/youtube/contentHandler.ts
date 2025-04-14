@@ -7,7 +7,8 @@ import {
   displaySummary,
 } from "./ui";
 import { generateSummary, isUserLoggedIn } from "./api";
-
+let isStreamingSummary = false;
+let currentSummaryHTML = '';
 // Global variables for tracking data
 let transcriptData: TranscriptSegment[] | null = null;
 let summaryData: Summary | null = null;

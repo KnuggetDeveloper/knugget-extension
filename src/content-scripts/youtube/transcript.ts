@@ -1,5 +1,5 @@
-import { TranscriptResponse, TranscriptSegment } from './types';
-import { invisibleClick, waitForElement } from './utils';
+import { TranscriptResponse, TranscriptSegment } from "./types";
+import { invisibleClick, waitForElement } from "./utils";
 
 // Check if "No transcript" message is visible
 function hasNoTranscriptMessage(): boolean {
@@ -104,27 +104,26 @@ export async function extractTranscript(): Promise<TranscriptResponse> {
     return { success: false, error: errorMessage };
   }
 }
-
 // Function to create transcript segment HTML
-export function createTranscriptSegmentHTML(segments: TranscriptSegment[]): string {
+export function createTranscriptSegmentHTML(segments: TranscriptSegment[]) {
   if (!segments || segments.length === 0) {
     return `
-      <div class="p-4 text-center">
-        <p class="text-gray-400">No transcript segments found.</p>
-      </div>
+      <h2 class="knugget-title">Transcript</h2>
+      <p style="color: #dfdfdf; text-align: center;">No transcript segments found.</p>
     `;
   }
 
-  return segments
-    .map(
-      (segment) => `
-      <div class="transcript-segment mb-3">
-        <div class="flex">
-          <span class="segment-timestamp text-teal-400 font-mono text-xs mr-2">${segment.timestamp}</span>
-          <p class="segment-text text-gray-200 whitespace-pre-wrap">${segment.text}</p>
-        </div>
-      </div>
-    `
-    )
-    .join("");
+  const segmentsHTML = segments.map(segment => `
+    <li class="knugget-list-item">
+      <span class="knugget-timestamp">${segment.timestamp}</span>
+      <span class="knugget-transcript-text">${segment.text}</span>
+    </li>
+  `).join('');
+
+  return `
+    <h2 class="knugget-title">Transcript</h2>
+    <ul class="knugget-list">
+      ${segmentsHTML}
+    </ul>
+  `;
 }

@@ -1,16 +1,16 @@
+// src/content-scripts/youtube/ui.ts
+// Updated implementation for Knugget panel
+
 import { Summary, UI_ELEMENTS } from "./types";
 import { saveSummary } from "./api";
 
-// Function to show loading state in transcript/summary container
-export function showLoading(
-  contentElement: HTMLElement,
-  message: string = "Loading"
-): void {
+// Function to show loading state in panel
+export function showLoading(contentElement: HTMLElement, message = "Loading") {
   contentElement.innerHTML = `
-    <div class="flex flex-col items-center justify-center p-6 text-center">
-      <div class="knugget-spinner mb-4 w-8 h-8 border-2 border-t-2 border-teal-400 border-t-transparent rounded-full animate-spin"></div>
-      <p class="text-base font-medium text-gray-200 mb-1">${message}</p>
-      <p class="text-sm text-gray-400">Please wait...</p>
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; text-align: center;">
+      <div class="knugget-spinner" style="width: 32px; height: 32px; margin-bottom: 16px;"></div>
+      <p style="font-family: 'AirbnbCerealApp-Medium', Helvetica; font-weight: 500; color: #dfdfdf; margin-bottom: 8px;">${message}</p>
+      <p style="font-family: 'AirbnbCerealApp-Medium', Helvetica; font-weight: 400; color: #aaaaaa; font-size: 0.875rem;">Please wait...</p>
     </div>
   `;
 }
@@ -19,22 +19,22 @@ export function showLoading(
 export function showError(
   contentElement: HTMLElement,
   errorMessage: string,
-  retryFunction?: () => void
-): void {
+  retryFunction: () => void
+) {
   contentElement.innerHTML = `
-    <div class="flex flex-col items-center justify-center p-6 text-center">
-      <div class="mb-4 text-red-400">
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; text-align: center;">
+      <div style="color: #ff4757; margin-bottom: 16px;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
           <path d="M12 7V13M12 16V16.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
       </div>
-      <p class="text-base font-medium text-gray-200 mb-1">Error</p>
-      <p class="text-sm text-gray-400 mb-4">${errorMessage}</p>
+      <p style="font-family: 'AirbnbCerealApp-Medium', Helvetica; font-weight: 500; color: #dfdfdf; margin-bottom: 8px;">Error</p>
+      <p style="font-family: 'AirbnbCerealApp-Medium', Helvetica; font-weight: 400; color: #aaaaaa; font-size: 0.875rem; margin-bottom: 16px;">${errorMessage}</p>
       ${
-        retryFunction
+        typeof retryFunction === "function"
           ? `
-        <button id="retry-btn" class="bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium px-5 py-2 rounded-md inline-flex items-center">
+        <button id="retry-btn" style="background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%); color: #362b1e; font-family: 'AirbnbCerealApp-Black', Helvetica; font-weight: 900; font-size: 0.75rem; padding: 6px 12px; border: none; border-radius: 17.5px; cursor: pointer;">
           Try Again
         </button>
       `
@@ -53,20 +53,24 @@ export function showError(
 }
 
 // Function to show login required state for summary tab
-export function showLoginRequired(summaryContentElement: HTMLElement): void {
+export function showLoginRequired(summaryContentElement: HTMLElement) {
   summaryContentElement.innerHTML = `
-    <div class="p-4 bg-gray-800 rounded-lg text-center">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-yellow-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m0 0v2m0-2h2m-2 0H8m10-6a6 6 0 01-6 6 6 6 0 01-6-6 6 6 0 016-6 6 6 0 016 6z" />
-      </svg>
-      <h3 class="text-lg font-semibold text-white mb-2">Login Required</h3>
-      <p class="text-gray-300 mb-4">Please log in to generate and view summaries</p>
-      <button id="knugget-login-btn" class="bg-teal-500 hover:bg-teal-600 text-white px-4 py-2 rounded-md transition-colors">
-        Login to Knugget
-      </button>
-      <button id="knugget-signup-btn" class="ml-2 bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-md transition-colors">
-        Create Account
-      </button>
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; text-align: center;">
+      <div style="color: #ffc048; margin-bottom: 16px;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 15v2m0 0v2m0-2h2m-2 0H8m10-6a6 6 0 01-6 6 6 6 0 01-6-6 6 6 0 016-6 6 6 0 016 6z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <p style="font-family: 'AirbnbCerealApp-Black', Helvetica; font-weight: 900; color: #dfdfdf; margin-bottom: 8px;">Login Required</p>
+      <p style="font-family: 'AirbnbCerealApp-Medium', Helvetica; font-weight: 400; color: #aaaaaa; font-size: 0.875rem; margin-bottom: 16px;">Please log in to generate and view summaries</p>
+      <div style="display: flex; gap: 8px;">
+        <button id="knugget-login-btn" style="background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%); color: #362b1e; font-family: 'AirbnbCerealApp-Black', Helvetica; font-weight: 900; font-size: 0.75rem; padding: 6px 12px; border: none; border-radius: 17.5px; cursor: pointer;">
+          Login
+        </button>
+        <button id="knugget-signup-btn" style="background: #2e2e2e; color: #cccccc; font-family: 'AirbnbCerealApp-Black', Helvetica; font-weight: 900; font-size: 0.75rem; padding: 6px 12px; border: none; border-radius: 17.5px; cursor: pointer;">
+          Create Account
+        </button>
+      </div>
     </div>
   `;
 
@@ -91,11 +95,11 @@ export function showLoginRequired(summaryContentElement: HTMLElement): void {
   }
 }
 
-// Function to display summary
+// Function to display summary with enhanced formatting
 export function displaySummary(
   summaryContentElement: HTMLElement,
   summary: Summary
-): void {
+) {
   // First, check and normalize the summary data
   const normalizedSummary = {
     title: summary.title || "Video Summary",
@@ -103,154 +107,60 @@ export function displaySummary(
     fullSummary: summary.fullSummary || "No summary content available.",
   };
 
-  // Create HTML for key points - with proper null checking
+  // Format the summary content - convert markdown to HTML
+  let formattedSummary = normalizedSummary.fullSummary;
+
+  // Convert markdown bold to HTML
+  formattedSummary = formattedSummary.replace(
+    /\*\*(.*?)\*\*/g,
+    "<strong>$1</strong>"
+  );
+
+  // Create HTML for key points
   const keyPointsHTML =
     normalizedSummary.keyPoints.length > 0
       ? normalizedSummary.keyPoints
           .map(
-            (point) => `<li class="mb-3 flex items-start">
-                         <span class="inline-block mr-2 text-teal-400">•</span>
-                         <span>${point}</span>
-                       </li>`
+            (point: string) => `
+        <li class="knugget-list-item">
+          <span class="knugget-takeaway-text">${point}</span>
+        </li>
+      `
           )
           .join("")
-      : "<li class='mb-3'>No key points available</li>";
-  // Get video ID for generating the share URL
-  const videoId = new URLSearchParams(window.location.search).get("v") || "";
-  const shareUrl = `https://your-production-frontend.com/summary/${videoId}?ref=ext`;
+      : `<li class="knugget-list-item">
+         <span class="knugget-takeaway-text">No key points available</span>
+       </li>`;
 
+  // Update content
   summaryContentElement.innerHTML = `
-  <div class="p-4">
-    <h3 class="text-xl font-medium text-white mb-3">${
-      summary.title || "Summary"
-    }</h3>
-    
-    <div class="mb-5 bg-gray-800 p-3 rounded-lg">
-      <h4 class="text-md font-medium text-teal-400 mb-2">Key Points</h4>
-      <ul class="list-none pl-1 text-gray-200">
-        ${keyPointsHTML}
-      </ul>
+    <h2 class="knugget-title">${normalizedSummary.title}</h2>
+    <div class="knugget-summary-content">
+      ${formattedSummary}
     </div>
-    
-    <div class="bg-gray-800 p-3 rounded-lg">
-      <h4 class="text-md font-medium text-teal-400 mb-2">Full Summary</h4>
-      <p class="text-gray-200 whitespace-pre-wrap leading-relaxed">${
-        summary.fullSummary
-      }</p>
-    </div>
+    <ul class="knugget-list">
+      ${keyPointsHTML}
+    </ul>
+  `;
 
-    <div class="mt-5 flex justify-between">
-      <div class="flex gap-2">
-        <button id="copy-summary-btn" class="bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium px-3 py-1.5 rounded-md inline-flex items-center transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="mr-1" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-          </svg>
-          Copy
-        </button>
-        <button id="share-summary-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-3 py-1.5 rounded-md inline-flex items-center transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" class="mr-1" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-            <polyline points="16 6 12 2 8 6"></polyline>
-            <line x1="12" y1="2" x2="12" y2="15"></line>
-          </svg>
-          Share
-        </button>
-      </div>
-      <!-- Remove the save button for now -->
-      <!--
-      <button id="save-summary-btn" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium px-3 py-1.5 rounded-md inline-flex items-center transition-colors">
-        <svg xmlns="http://www.w3.org/2000/svg" class="mr-1" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-          <polyline points="17 21 17 13 7 13 7 21"></polyline>
-          <polyline points="7 3 7 8 15 8"></polyline>
-        </svg>
-        Save Summary
-      </button>
-      -->
-    </div>
-  </div>
-`;
-  // Add copy button event listener
-  const copyButton = document.getElementById("copy-summary-btn");
-  if (copyButton) {
-    copyButton.addEventListener("click", () => {
-      try {
-        // Create text to copy
-        const textToCopy = `${summary.title}\n\nKEY POINTS:\n${summary.keyPoints
-          .map((point) => `• ${point}`)
-          .join("\n")}\n\nSUMMARY:\n${
-          summary.fullSummary
-        }\n\nGenerated by Knugget AI`;
+  // Add save button if not already present
+  if (!document.getElementById("save-btn")) {
+    const saveButton = document.createElement("button");
+    saveButton.id = "save-btn";
+    saveButton.className = "knugget-save-btn";
+    saveButton.textContent = "Save";
 
-        // Copy to clipboard
-        navigator.clipboard.writeText(textToCopy).then(() => {
-          copyButton.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="mr-1" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 6L9 17l-5-5"></path>
-            </svg>
-            Copied!
-          `;
+    // Add to container
+    const container = document.querySelector(".knugget-box");
+    if (container) {
+      container.appendChild(saveButton);
+    }
 
-          setTimeout(() => {
-            copyButton.innerHTML = `
-              <svg xmlns="http://www.w3.org/2000/svg" class="mr-1" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-              </svg>
-              Copy
-            `;
-          }, 2000);
-        });
-      } catch (error) {
-        console.error("Copy to clipboard failed:", error);
-      }
-    });
-  }
-
-  // Add share button event listener
-  const shareButton = document.getElementById("share-summary-btn");
-  if (shareButton) {
-    shareButton.addEventListener("click", () => {
-      try {
-        navigator.clipboard.writeText(shareUrl).then(() => {
-          shareButton.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="mr-1" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 6L9 17l-5-5"></path>
-            </svg>
-            Link Copied!
-          `;
-
-          setTimeout(() => {
-            shareButton.innerHTML = `
-              <svg xmlns="http://www.w3.org/2000/svg" class="mr-1" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                <polyline points="16 6 12 2 8 6"></polyline>
-                <line x1="12" y1="2" x2="12" y2="15"></line>
-              </svg>
-              Share
-            `;
-          }, 2000);
-        });
-      } catch (error) {
-        console.error("Copy share link failed:", error);
-      }
-    });
-  }
-
-  // Add save button event listener
-  const saveButton = document.getElementById("save-summary-btn");
-  if (saveButton) {
+    // Add event listener
     saveButton.addEventListener("click", async () => {
       try {
-        (saveButton as HTMLButtonElement).disabled = true;
-        saveButton.innerHTML = `
-          <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          Saving...
-        `;
+        saveButton.disabled = true;
+        saveButton.textContent = "...";
 
         // Get video metadata
         const videoId =
@@ -268,297 +178,433 @@ export function displaySummary(
         // Call API to save summary
         const response = await saveSummary(summaryToSave);
 
-        if (response) {
-          saveButton.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="mr-1" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 6L9 17l-5-5"></path>
-            </svg>
-            Saved!
-          `;
-
-          // Add view button after saving
-          const buttonsContainer = saveButton.parentElement;
-          if (buttonsContainer) {
-            const viewButton = document.createElement("button");
-            viewButton.id = "view-saved-summaries-btn";
-            viewButton.className =
-              "ml-2 bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium px-3 py-1.5 rounded-md inline-flex items-center transition-colors";
-            viewButton.innerHTML = `
-              <svg xmlns="http://www.w3.org/2000/svg" class="mr-1" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-              </svg>
-              View All
-            `;
-
-            // Add click handler to view saved summaries
-            viewButton.addEventListener("click", () => {
-              chrome.runtime.sendMessage({
-                type: "OPEN_SAVED_SUMMARIES_PAGE",
-              });
-            });
-
-            // Insert before the save button
-            buttonsContainer.insertBefore(viewButton, saveButton);
-
-            // Hide the save button
-            saveButton.style.display = "none";
-          }
-        } else {
-          saveButton.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" class="mr-1" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-              <polyline points="17 21 17 13 7 13 7 21"></polyline>
-              <polyline points="7 3 7 8 15 8"></polyline>
-            </svg>
-            Save Summary
-          `;
-          (saveButton as HTMLButtonElement).disabled = false;
-
-          // Show error notification
-          const notification = document.createElement("div");
-          notification.className =
-            "fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg z-50";
-          notification.textContent = "Failed to save summary";
-          document.body.appendChild(notification);
-
+        if (response && response.success) {
+          saveButton.textContent = "Saved";
           setTimeout(() => {
-            notification.remove();
-          }, 3000);
+            saveButton.textContent = "Save";
+            saveButton.disabled = false;
+          }, 2000);
+        } else {
+          saveButton.textContent = "Failed";
+          setTimeout(() => {
+            saveButton.textContent = "Save";
+            saveButton.disabled = false;
+          }, 2000);
         }
       } catch (error) {
         console.error("Error saving summary:", error);
-        (saveButton as HTMLButtonElement).disabled = false;
-        saveButton.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" class="mr-1" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-            <polyline points="17 21 17 13 7 13 7 21"></polyline>
-            <polyline points="7 3 7 8 15 8"></polyline>
-          </svg>
-          Save Summary
-        `;
+        saveButton.textContent = "Error";
+        setTimeout(() => {
+          saveButton.textContent = "Save";
+          saveButton.disabled = false;
+        }, 2000);
       }
     });
   }
 }
 
 // Function to inject Knugget panel into the page
-export function injectKnuggetPanel(targetElement: HTMLElement): void {
-  console.log("Knugget AI: Injecting panel");
+export function injectKnuggetPanel(targetElement: HTMLElement) {
+  console.log("Knugget AI: Injecting panel with updated UI");
 
   // Create our container
   const knuggetContainer = document.createElement("div");
-  knuggetContainer.id = UI_ELEMENTS.CONTAINER_ID;
-  knuggetContainer.className = UI_ELEMENTS.CONTAINER_CLASS;
+  knuggetContainer.id = "knugget-container";
+  knuggetContainer.className = "knugget-extension";
 
-  // Extract video ID from URL for potential API calls
-  const videoId = new URLSearchParams(window.location.search).get("v") || "";
-
-  // Create the improved UI with modern design
+  // Create the UI based on the design in the provided image
   knuggetContainer.innerHTML = `
-  <div class="knugget-box bg-black min-w-[320px] rounded-lg shadow-lg border border-gray-800 overflow-hidden mb-4">
-    <!-- Header with diamond icon -->
-    <div class="flex justify-between items-center py-3 px-4 border-b border-gray-800">
-      <div class="flex items-center">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="mr-2">
-          <path d="M12 2L22 12L12 22L2 12L12 2Z" fill="${UI_ELEMENTS.DIAMOND_ICON_COLOR}"/>
-        </svg>
-        <span class="text-gray-200 font-medium text-sm">Knugget AI</span>
-      </div>
-      <div>
-        <button id="knugget-settings-btn" class="text-gray-400 hover:text-gray-200">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-        </button>
-      </div>
-    </div>
-    
-    <!-- Tabs -->
-    <div class="flex border-b border-gray-800">
-      <button id="transcript-tab" class="flex-1 py-3 px-4 text-center text-sm font-medium bg-gray-900 text-white border-b-2 border-teal-500">
-        Transcript
-      </button>
-      <button id="summary-tab" class="flex-1 py-3 px-4 text-center text-sm font-medium bg-black text-gray-400 border-b-2 border-transparent">
-        Summary
-      </button>
-    </div>
-    
-    <!-- Content area -->
-    <div class="knugget-content-area">
-      <!-- Transcript content -->
-      <div id="transcript-content" class="bg-black text-gray-200 max-h-[400px] overflow-y-auto">
-        <!-- Transcript will be loaded here -->
-        <div class="flex flex-col items-center justify-center p-6 text-center">
-          <div class="knugget-spinner mb-4 w-8 h-8 border-2 border-t-2 border-teal-400 border-t-transparent rounded-full animate-spin"></div>
-          <p class="text-base font-medium text-gray-200 mb-1">Loading Transcript</p>
-          <p class="text-sm text-gray-400">Please wait while we load the transcript...</p>
+    <div class="knugget-box">
+      <!-- Header with logo and credits -->
+      <div class="knugget-header">
+        <!-- Gold icon -->
+        <div style="display: flex; align-items: center;">
+          <img
+            alt="Gold ingots"
+            src="https://i.ibb.co/23dhZ9F/gold-ingots.png"
+            style="width: 21px; height: 21px; margin-right: 8px;"
+          />
+          <span class="knugget-logo">Knugget</span>
+        </div>
+        
+        <!-- Credits Badge -->
+        <div class="knugget-credits">
+          <img
+            alt="Gold bar"
+            src="https://i.ibb.co/zZQK6W0/gold-bar.png"
+            style="width: 18px; height: 18px; margin-right: 4px;"
+          />
+          3 Free Credits Left
         </div>
       </div>
       
-      <!-- Summary content (initially hidden) -->
-      <div id="summary-content" class="hidden bg-black text-gray-200 max-h-[400px] overflow-y-auto">
-        <!-- Summary login prompt will be loaded here -->
+      <!-- Separator Line -->
+      <div class="knugget-separator"></div>
+      
+      <!-- Tab Navigation -->
+      <div class="knugget-tabs">
+        <button id="transcript-tab" class="knugget-tab knugget-tab-active">
+          View Transcript
+        </button>
+        <button id="summary-tab" class="knugget-tab knugget-tab-inactive">
+          View Key Takeaways
+        </button>
       </div>
+      
+      <!-- Content Area -->
+      <div class="knugget-content">
+        <!-- Transcript content (initially visible) -->
+        <div id="transcript-content" class="knugget-content-inner">
+          <!-- Transcript will be loaded here -->
+        </div>
+        
+        <!-- Summary content (initially hidden) -->
+        <div id="summary-content" class="knugget-content-inner" style="display: none;">
+          <!-- Summary will be loaded here -->
+        </div>
+      </div>
+      
+      <!-- Save Button -->
+      <button id="save-btn" class="knugget-save-btn">Save</button>
     </div>
-
-    <!-- Footer -->
-    <div class="py-2 px-4 border-t border-gray-800 flex justify-between items-center">
-      <div class="text-xs text-gray-500">
-        Powered by Knugget AI
-      </div>
-      <div>
-        <a href="#" id="knugget-feedback" class="text-xs text-teal-500 hover:text-teal-400">Send feedback</a>
-      </div>
-    </div>
-  </div>
   `;
 
   // Add the container to the target element
   targetElement.prepend(knuggetContainer);
 
-  // Import from main.ts to avoid circular dependencies
-  import("./main").then((module) => {
-    module.initPanelAfterInjection();
-  });
+  // Show loading state initially
+  const transcriptContent = document.getElementById("transcript-content");
+  const summaryContent = document.getElementById("summary-content");
+
+  if (transcriptContent) {
+    showLoading(transcriptContent, "Loading Transcript");
+  }
+
+  if (summaryContent) {
+    // Still initialize the summary content, but it will be hidden
+    showLoading(summaryContent, "Generating Key Takeaways");
+  }
+
+  // Setup event listeners for tabs
+  setupTabEventListeners();
+
+  // Load transcript by default
+  loadAndDisplayTranscript();
 }
 
+// Function to set up tab event listeners
+function setupTabEventListeners() {
+  const transcriptTab = document.getElementById("transcript-tab");
+  const summaryTab = document.getElementById("summary-tab");
+  const transcriptContent = document.getElementById("transcript-content");
+  const summaryContent = document.getElementById("summary-content");
+
+  if (transcriptTab && summaryTab && transcriptContent && summaryContent) {
+    // Transcript tab click
+    transcriptTab.addEventListener("click", () => {
+      // Update tab styles
+      transcriptTab.classList.remove("knugget-tab-inactive");
+      transcriptTab.classList.add("knugget-tab-active");
+      summaryTab.classList.remove("knugget-tab-active");
+      summaryTab.classList.add("knugget-tab-inactive");
+
+      // Show transcript, hide summary
+      transcriptContent.style.display = "block";
+      summaryContent.style.display = "none";
+
+      // Load transcript content if needed
+      loadAndDisplayTranscript();
+    });
+
+    // Summary tab click
+    summaryTab.addEventListener("click", () => {
+      // Update tab styles
+      summaryTab.classList.remove("knugget-tab-inactive");
+      summaryTab.classList.add("knugget-tab-active");
+      transcriptTab.classList.remove("knugget-tab-active");
+      transcriptTab.classList.add("knugget-tab-inactive");
+
+      // Show summary, hide transcript
+      summaryContent.style.display = "block";
+      transcriptContent.style.display = "none";
+
+      // Load summary content if needed
+      loadAndDisplaySummary();
+    });
+  }
+}
+
+// Import these functions from your contentHandler.js
+import {
+  loadAndDisplayTranscript,
+  loadAndDisplaySummary,
+} from "./contentHandler";
+
 // Add styles to the page
-export function addStyles(): void {
+export function addStyles() {
   const style = document.createElement("style");
   style.textContent = `
+    /* Knugget AI Extension Styling */
+    
+    /* Base styles */
     .knugget-extension {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: "AirbnbCerealApp", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       margin-bottom: 16px;
+      width: 100%;
+      max-width: 465px;
     }
     
     .knugget-box {
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-    }
-    
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    
-    .knugget-spinner {
-      animation: spin 1s linear infinite;
-    }
-    
-    .transcript-segment {
-      padding: 6px 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      transition: background-color 0.2s;
-    }
-    
-    .transcript-segment:hover {
-      background-color: rgba(255, 255, 255, 0.05);
-    }
-    
-    .segment-timestamp {
-      min-width: 50px;
-      color: #00b894;
-      font-family: monospace;
-      font-weight: 500;
-    }
-    
-    #transcript-content, #summary-content {
-      scrollbar-width: thin;
-      scrollbar-color: rgba(0, 184, 148, 0.5) rgba(0, 0, 0, 0.1);
-      padding: 8px 0;
-    }
-    
-    #transcript-content::-webkit-scrollbar,
-    #summary-content::-webkit-scrollbar {
-      width: 6px;
-    }
-    
-    #transcript-content::-webkit-scrollbar-track,
-    #summary-content::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.1);
-    }
-    
-    #transcript-content::-webkit-scrollbar-thumb,
-    #summary-content::-webkit-scrollbar-thumb {
-      background-color: rgba(0, 184, 148, 0.5);
-      border-radius: 6px;
-    }
-    
-    #transcript-tab, #summary-tab {
-      transition: all 0.2s ease;
+      background-color: black;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      height: 519px;
       position: relative;
     }
     
-    #summary-tab:hover, #transcript-tab:hover {
-      background-color: rgba(255, 255, 255, 0.05);
+    /* Header section */
+    .knugget-header {
+      padding: 8px 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     
-    button {
+    .knugget-logo {
+      font-family: "AirbnbCerealApp-Black", Helvetica;
+      font-weight: 900;
+      background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-fill-color: transparent;
+      font-size: 1.25rem;
+      letter-spacing: 1.27px;
+    }
+    
+    .knugget-credits {
+      font-family: "AirbnbCerealApp-Medium", Helvetica;
+      font-weight: 500;
+      color: #dfdfdf;
+      font-size: 0.75rem;
+      letter-spacing: 0.76px;
+      display: flex;
+      align-items: center;
+    }
+    
+    /* Separator line */
+    .knugget-separator {
+      height: 1px;
+      background-color: #333;
+      margin: 0 12px;
+    }
+    
+    /* Tab navigation */
+    .knugget-tabs {
+      display: flex;
+      gap: 8px;
+      padding: 8px 12px;
+    }
+    
+    .knugget-tab {
+      flex: 1;
+      height: 37px;
+      border-radius: 17.5px;
+      font-family: "AirbnbCerealApp-Black", Helvetica;
+      font-weight: 900;
+      font-size: 15px;
+      letter-spacing: 0.95px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    
+    .knugget-tab-inactive {
+      background-color: #2e2e2e;
+      color: #cccccc;
+    }
+    
+    .knugget-tab-active {
+      background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%);
+      color: #362b1e;
+    }
+    
+    /* Content area */
+    .knugget-content {
+      margin: 10px 12px;
+      background-color: #0f0f0f;
+      border-radius: 10px;
+      height: 388px;
+      overflow: hidden;
+    }
+    
+    .knugget-content-inner {
+      padding: 14px;
+      height: 100%;
+      overflow-y: auto;
+    }
+    
+    .knugget-title {
+      font-family: "AirbnbCerealApp-Black", Helvetica;
+      font-weight: 900;
+      color: #dfdfdf;
+      font-size: 1.25rem;
+      margin-bottom: 16px;
+      letter-spacing: 0.25px;
+    }
+    
+    /* List items */
+    .knugget-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    
+    .knugget-list-item {
+      display: flex;
+      align-items: flex-start;
+    }
+    
+    .knugget-bullet {
+      width: 10px;
+      height: 10px;
+      background-color: #dfdfdf;
+      border-radius: 5px;
+      margin-top: 6px;
+      margin-right: 20px;
+      flex-shrink: 0;
+    }
+    
+    .knugget-transcript-text {
+      font-family: "Istok Web", Helvetica;
+      font-weight: bold;
+      color: #f6f6f6;
+      font-size: 1.25rem;
+    }
+    
+    .knugget-takeaway-text {
+      font-family: "AirbnbCerealApp-Medium", Helvetica;
+      font-weight: 500;
+      color: #dfdfdf;
+      font-size: 0.875rem;
+      letter-spacing: 0.12px;
+      line-height: 1.4;
+    }
+    
+    /* Save button */
+    .knugget-save-btn {
+      position: absolute;
+      bottom: 7px;
+      right: 14px;
+      height: 24px;
+      width: 54px;
+      background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%);
+      color: #362b1e;
+      font-family: "AirbnbCerealApp-Black", Helvetica;
+      font-weight: 900;
+      font-size: 0.75rem;
+      letter-spacing: 0.76px;
+      border: none;
+      border-radius: 17.5px;
       cursor: pointer;
     }
     
-    .knugget-extension button:hover {
-      opacity: 0.9;
+    /* Custom scrollbar */
+    .knugget-content-inner::-webkit-scrollbar {
+      width: 2.5px;
     }
     
-    /* Summary styling */
-    #summary-content h3 {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      padding: 0 12px;
+    .knugget-content-inner::-webkit-scrollbar-track {
+      background: transparent;
     }
     
-    #summary-content h4 {
-      font-size: 14px;
+    .knugget-content-inner::-webkit-scrollbar-thumb {
+      background-color: #aaaaaa;
+      border-radius: 5.5px;
+    }
+    
+    /* Transcript timestamp */
+    .knugget-timestamp {
+      font-family: 'AirbnbCerealApp-Medium', Helvetica;
       font-weight: 500;
-      margin-bottom: 8px;
-      padding: 0 12px;
-      color: #00b894;
-    }
-    
-    #summary-content ul {
-      margin-left: 12px;
+      color: #ffa500;
+      font-size: 0.875rem;
+      min-width: 60px;
       margin-right: 12px;
-      margin-bottom: 16px;
+      padding-top: 3px;
+      flex-shrink: 0;
     }
     
-    #summary-content p {
-      padding: 0 12px;
+    /* Loading spinner */
+    .knugget-spinner {
+      width: 32px;
+      height: 32px;
+      border: 2px solid rgba(255, 177, 0, 0.1);
+      border-radius: 50%;
+      border-top: 2px solid rgba(255, 70, 6, 1);
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    /* Summary formatting */
+    .knugget-summary-content {
+      font-family: "AirbnbCerealApp-Medium", Helvetica;
+      font-weight: 400;
+      color: #dfdfdf;
+      font-size: 0.875rem;
       line-height: 1.5;
-      margin-bottom: 12px;
+      margin-bottom: 16px;
+      padding: 12px;
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
     }
     
-    /* Button styling */
-    #knugget-login-btn, #save-summary-btn, #retry-btn {
-      background-color: #00b894;
+    .knugget-summary-content strong {
+      color: #ffa500;
+      font-weight: 700;
+    }
+    
+    .knugget-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .knugget-list-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 8px 12px;
+      background-color: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
       transition: background-color 0.2s ease;
     }
     
-    #knugget-login-btn:hover, #save-summary-btn:hover, #retry-btn:hover {
-      background-color: #00a884;
+    .knugget-list-item:hover {
+      background-color: rgba(255, 255, 255, 0.1);
     }
     
-    /* Diamond icon pulsing animation */
-    @keyframes pulse {
-      0% {
-        transform: scale(1);
-      }
-      50% {
-        transform: scale(1.05);
-      }
-      100% {
-        transform: scale(1);
-      }
+    .knugget-takeaway-text {
+      font-family: "AirbnbCerealApp-Medium", Helvetica;
+      font-weight: 400;
+      color: #dfdfdf;
+      font-size: 0.875rem;
+      letter-spacing: 0.12px;
+      line-height: 1.4;
     }
-    
-    .knugget-box svg path[fill="${UI_ELEMENTS.DIAMOND_ICON_COLOR}"] {
-      animation: pulse 2s infinite ease-in-out;
-    }
+      
   `;
   document.head.appendChild(style);
 }
