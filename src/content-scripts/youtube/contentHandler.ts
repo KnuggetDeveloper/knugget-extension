@@ -1,3 +1,5 @@
+// Updated src/content-scripts/youtube/contentHandler.ts
+
 import { Summary, TranscriptSegment } from "./types";
 import { extractTranscript, createTranscriptSegmentHTML } from "./transcript";
 import {
@@ -7,11 +9,11 @@ import {
   displaySummary,
 } from "./ui";
 import { generateSummary, isUserLoggedIn } from "./api";
-let isStreamingSummary = false;
-let currentSummaryHTML = '';
+
 // Global variables for tracking data
 let transcriptData: TranscriptSegment[] | null = null;
 let summaryData: Summary | null = null;
+let currentVideoId: string | null = null;
 
 // Function to load and display transcript
 export async function loadAndDisplayTranscript(): Promise<void> {
@@ -27,6 +29,16 @@ export async function loadAndDisplayTranscript(): Promise<void> {
   try {
     // Add a small delay to ensure YouTube has fully loaded
     await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Get current video ID to track which video we're processing
+    const videoId = new URLSearchParams(window.location.search).get("v") || "";
+    
+    // Update our tracking of the current video ID
+    if (currentVideoId !== videoId) {
+      console.log(`Video ID changed from ${currentVideoId} to ${videoId}`);
+      currentVideoId = videoId;
+      resetContentData(); // Reset data when video changes
+    }
 
     // Extract transcript data
     const transcriptResponse = await extractTranscript();
@@ -48,7 +60,7 @@ export async function loadAndDisplayTranscript(): Promise<void> {
       </div>
     `;
 
-    console.log("Transcript loaded successfully");
+    console.log(`Transcript loaded successfully for video ID: ${videoId}`);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
@@ -68,6 +80,16 @@ export async function loadAndDisplaySummary(): Promise<void> {
   showLoading(summaryContentElement, "Generating Summary");
 
   try {
+    // Get current video ID
+    const videoId = new URLSearchParams(window.location.search).get("v") || "";
+    
+    // Check if video changed since last summary
+    if (currentVideoId !== videoId) {
+      console.log(`Video ID changed from ${currentVideoId} to ${videoId} during summary generation`);
+      currentVideoId = videoId;
+      resetContentData(); // Reset data for new video
+    }
+
     // ✅ CHECK IF USER IS LOGGED IN FIRST
     const isLoggedIn = await isUserLoggedIn();
     if (!isLoggedIn) {
@@ -91,7 +113,6 @@ export async function loadAndDisplaySummary(): Promise<void> {
 
     // Get video metadata
     const videoUrl = window.location.href;
-    const videoId = new URLSearchParams(window.location.search).get("v") || "";
     const videoTitle =
       document.querySelector("h1.title")?.textContent?.trim() ||
       document.querySelector("h1.ytd-watch-metadata")?.textContent?.trim() ||
@@ -103,6 +124,7 @@ export async function loadAndDisplaySummary(): Promise<void> {
 
     console.log("Generating summary for:", {
       videoId,
+      videoUrl,
       videoTitle,
       channelName,
     });
@@ -136,7 +158,7 @@ export async function loadAndDisplaySummary(): Promise<void> {
     // Display the summary
     displaySummary(summaryContentElement, summaryResult);
 
-    console.log("Summary loaded successfully");
+    console.log(`Summary loaded successfully for video ID: ${videoId}`);
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
@@ -147,6 +169,7 @@ export async function loadAndDisplaySummary(): Promise<void> {
 
 // Reset data (when video changes)
 export function resetContentData() {
+  console.log("Resetting content data for new video");
   transcriptData = null;
   summaryData = null;
 }
@@ -158,4 +181,9 @@ export function getTranscriptData(): TranscriptSegment[] | null {
 
 export function getSummaryData(): Summary | null {
   return summaryData;
+}
+
+// Getter for current video ID
+export function getCurrentVideoId(): string | null {
+  return currentVideoId;
 }

@@ -1,3 +1,5 @@
+// Updated src/content-scripts/youtube/main.ts
+
 import { addStyles } from "./ui";
 import {
   setupPanelEventListeners,
@@ -12,8 +14,8 @@ const UI_ELEMENTS = {
   SECONDARY_COLUMN: "secondary",
   CONTAINER_ID: "knugget-container",
   CONTAINER_CLASS: "knugget-extension knugget-summary-widget",
-  DIAMOND_ICON_COLOR: "#00b894",
 };
+
 // Track the current video ID to detect changes
 let currentVideoId: string | null = null;
 
@@ -26,6 +28,7 @@ function handleURLChange(): void {
 
   // Get the new video ID
   const newVideoId = new URLSearchParams(window.location.search).get("v");
+  console.log(`URL change detected, new video ID: ${newVideoId}`);
 
   // If the video ID has changed, reinitialize the extension
   if (newVideoId && newVideoId !== currentVideoId) {
@@ -49,7 +52,7 @@ function processCurrentPage(videoId: string | null): void {
   // Notify background script
   chrome.runtime.sendMessage({
     type: "PAGE_LOADED",
-    payload: { url: window.location.href },
+    payload: { url: window.location.href, videoId },
   });
 
   // Remove any existing panel
@@ -73,6 +76,9 @@ function initKnuggetAI(): void {
 
   // Get current video ID
   const videoId = new URLSearchParams(window.location.search).get("v");
+
+  // Log the initialization
+  console.log(`Initializing Knugget AI for video ID: ${videoId}`);
 
   // Set up URL change detection only once
   setupURLChangeDetection(handleURLChange);
@@ -107,6 +113,18 @@ if (
   addStyles();
   initKnuggetAI();
 }
+
+// Setup a more robust YouTube navigation listener
+document.addEventListener("yt-navigate-finish", () => {
+  console.log("YouTube navigation detected via yt-navigate-finish event");
+  setTimeout(() => {
+    const videoId = new URLSearchParams(window.location.search).get("v");
+    if (videoId && videoId !== currentVideoId) {
+      console.log(`Navigation to new video detected: ${videoId}`);
+      processCurrentPage(videoId);
+    }
+  }, 500);
+});
 
 // Debug auth storage for troubleshooting
 debugAuthStorage();

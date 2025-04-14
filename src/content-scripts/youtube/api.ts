@@ -109,7 +109,6 @@ export interface TranscriptSegment {
   text: string;
 }
 
-
 /**
  * Check if user is logged in
  * @returns Promise resolving to boolean indicating login status
@@ -470,9 +469,13 @@ export async function generateSummary(
   }
 ): Promise<ApiResponse<Summary>> {
   try {
+    // Log detailed request info for debugging
     console.log("API: Generating summary", {
-      metadata,
+      videoId: metadata.videoId,
+      url: metadata.url,
+      title: metadata.title,
       contentLength: content.length,
+      contentPreview: content.substring(0, 100) + "...", // Preview of content
     });
 
     const response = await apiRequest<any>(
@@ -488,24 +491,30 @@ export async function generateSummary(
       true
     );
 
-    console.log("API: Summary response", response);
-    
+    console.log("API: Summary response", {
+      success: response.success,
+      dataPresent: !!response.data,
+      error: response.error || "none",
+    });
+
     // If successful, ensure the response data has the expected structure
     if (response.success && response.data) {
       // Check if response.data contains the summary directly or needs to be extracted
       const summaryData = response.data.data || response.data;
-      
+
       // Normalize the structure
       const normalizedSummary: Summary = {
         title: summaryData.title || metadata.title || "Video Summary",
-        keyPoints: Array.isArray(summaryData.keyPoints) ? summaryData.keyPoints : [],
-        fullSummary: summaryData.fullSummary || "No summary available."
+        keyPoints: Array.isArray(summaryData.keyPoints)
+          ? summaryData.keyPoints
+          : [],
+        fullSummary: summaryData.fullSummary || "No summary available.",
       };
-      
+
       return {
         success: true,
         data: normalizedSummary,
-        status: response.status
+        status: response.status,
       };
     }
 
