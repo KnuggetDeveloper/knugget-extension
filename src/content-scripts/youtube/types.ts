@@ -11,9 +11,15 @@ export interface TranscriptResponse {
 }
 
 export interface Summary {
+  id?: string;
   title: string;
   keyPoints: string[];
   fullSummary: string;
+  source?: string;
+  sourceUrl?: string;
+  videoId?: string;
+  createdAt?: string;
+  alreadySaved?: boolean; // Flag to indicate if summary is already saved
 }
 
 // Define our UI elements' class and ID names

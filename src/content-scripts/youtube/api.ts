@@ -93,6 +93,8 @@ export interface Summary {
   sourceUrl?: string;
   videoId?: string;
   createdAt?: string;
+  transcript?: string;
+  alreadySaved?: boolean;
 }
 
 // Generic API response type
@@ -469,13 +471,9 @@ export async function generateSummary(
   }
 ): Promise<ApiResponse<Summary>> {
   try {
-    // Log detailed request info for debugging
     console.log("API: Generating summary", {
-      videoId: metadata.videoId,
-      url: metadata.url,
-      title: metadata.title,
+      metadata,
       contentLength: content.length,
-      contentPreview: content.substring(0, 100) + "...", // Preview of content
     });
 
     const response = await apiRequest<any>(
@@ -491,11 +489,7 @@ export async function generateSummary(
       true
     );
 
-    console.log("API: Summary response", {
-      success: response.success,
-      dataPresent: !!response.data,
-      error: response.error || "none",
-    });
+    console.log("API: Summary response", response);
 
     // If successful, ensure the response data has the expected structure
     if (response.success && response.data) {
@@ -509,6 +503,9 @@ export async function generateSummary(
           ? summaryData.keyPoints
           : [],
         fullSummary: summaryData.fullSummary || "No summary available.",
+        alreadySaved: summaryData.alreadySaved || false, // Track save status
+        id: summaryData.id, // Include ID if it exists (for already saved summaries)
+        sourceUrl: summaryData.sourceUrl || metadata.url,
       };
 
       return {
@@ -539,8 +536,15 @@ export async function generateSummary(
  */
 export async function saveSummary(
   summary: Summary
-): Promise<ApiResponse<{ id: string }>> {
-  return apiRequest<{ id: string }>(
+): Promise<ApiResponse<{ id: string; alreadySaved: boolean }>> {
+  console.log("API: Saving summary", {
+    title: summary.title,
+    videoId: summary.videoId,
+    sourceUrl: summary.sourceUrl,
+    hasTranscript: !!summary.transcript,
+  });
+
+  return apiRequest<{ id: string; alreadySaved: boolean }>(
     ENDPOINTS.SAVE_SUMMARY,
     "POST",
     summary,

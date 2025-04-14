@@ -6,6 +6,7 @@ import { saveSummary } from "./api";
 import {
   loadAndDisplayTranscript,
   loadAndDisplaySummary,
+  getTranscriptData,
 } from "./contentHandler";
 
 // Function to show loading state in panel
@@ -121,7 +122,7 @@ export function displaySummary(
     "<strong>$1</strong>"
   );
 
-  // Create HTML for key points - use the styling from Image 1
+  // Create HTML for key points
   const keyPointsHTML = summary.keyPoints
     .map((point) => {
       // Extract emoji and text
@@ -160,11 +161,19 @@ export function displaySummary(
   `;
 
   // Add save button if not already present
-  if (!document.getElementById("save-btn")) {
+  const existingSaveBtn = document.getElementById("save-btn");
+  if (!existingSaveBtn) {
     const saveButton = document.createElement("button");
     saveButton.id = "save-btn";
     saveButton.className = "knugget-save-btn";
-    saveButton.textContent = "Save";
+
+    // Set initial button text based on whether summary is already saved
+    saveButton.textContent = summary.alreadySaved ? "Saved" : "Save";
+    saveButton.disabled = !!summary.alreadySaved;
+
+    if (summary.alreadySaved) {
+      saveButton.classList.add("already-saved");
+    }
 
     // Add to container
     const container = document.querySelector(".knugget-box");
@@ -174,14 +183,24 @@ export function displaySummary(
 
     // Add event listener
     saveButton.addEventListener("click", async () => {
+      if (saveButton.disabled) {
+        return; // Don't do anything if button is disabled
+      }
+
       try {
         saveButton.disabled = true;
-        saveButton.textContent = "...";
+        saveButton.textContent = "Saving...";
 
         // Get video metadata
         const videoId =
           new URLSearchParams(window.location.search).get("v") || "";
         const videoUrl = window.location.href;
+
+        // Get the transcript data to save along with the summary
+        const transcriptData = getTranscriptData();
+        const transcriptText = transcriptData
+          ? transcriptData.map((s) => s.text).join(" ")
+          : "";
 
         // Prepare summary for saving
         const summaryToSave = {
@@ -189,6 +208,7 @@ export function displaySummary(
           videoId,
           sourceUrl: videoUrl,
           source: "youtube",
+          transcript: transcriptText, // Include transcript
         };
 
         // Call API to save summary
@@ -196,10 +216,8 @@ export function displaySummary(
 
         if (response && response.success) {
           saveButton.textContent = "Saved";
-          setTimeout(() => {
-            saveButton.textContent = "Save";
-            saveButton.disabled = false;
-          }, 2000);
+          saveButton.classList.add("already-saved");
+          // Don't re-enable the button since it's now permanently saved
         } else {
           saveButton.textContent = "Error";
           setTimeout(() => {
@@ -216,6 +234,18 @@ export function displaySummary(
         }, 2000);
       }
     });
+  } else if (summary.alreadySaved) {
+    // If summary is already saved, update existing button
+    const saveButton = existingSaveBtn as HTMLButtonElement;
+    saveButton.textContent = "Saved";
+    saveButton.disabled = true;
+    saveButton.classList.add("already-saved");
+  } else {
+    // Reset button state if summary is not saved
+    const saveButton = existingSaveBtn as HTMLButtonElement;
+    saveButton.textContent = "Save";
+    saveButton.disabled = false;
+    saveButton.classList.remove("already-saved");
   }
 }
 
