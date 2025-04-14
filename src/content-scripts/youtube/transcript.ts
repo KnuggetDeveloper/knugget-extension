@@ -109,21 +109,21 @@ export function createTranscriptSegmentHTML(segments: TranscriptSegment[]) {
   if (!segments || segments.length === 0) {
     return `
       <h2 class="knugget-title">Transcript</h2>
-      <p style="color: #dfdfdf; text-align: center;">No transcript segments found.</p>
+      <p style="color: #ffffff; text-align: center; padding: 20px;">No transcript segments found.</p>
     `;
   }
 
   const segmentsHTML = segments.map(segment => `
-    <li class="knugget-list-item">
+    <div class="transcript-segment">
       <span class="knugget-timestamp">${segment.timestamp}</span>
       <span class="knugget-transcript-text">${segment.text}</span>
-    </li>
+    </div>
   `).join('');
 
   return `
     <h2 class="knugget-title">Transcript</h2>
-    <ul class="knugget-list">
+    <div class="transcript-container">
       ${segmentsHTML}
-    </ul>
+    </div>
   `;
 }

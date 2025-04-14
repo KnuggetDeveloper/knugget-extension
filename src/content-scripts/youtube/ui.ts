@@ -3,14 +3,18 @@
 
 import { Summary, UI_ELEMENTS } from "./types";
 import { saveSummary } from "./api";
+import {
+  loadAndDisplayTranscript,
+  loadAndDisplaySummary,
+} from "./contentHandler";
 
 // Function to show loading state in panel
 export function showLoading(contentElement: HTMLElement, message = "Loading") {
   contentElement.innerHTML = `
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; text-align: center;">
-      <div class="knugget-spinner" style="width: 32px; height: 32px; margin-bottom: 16px;"></div>
-      <p style="font-family: 'AirbnbCerealApp-Medium', Helvetica; font-weight: 500; color: #dfdfdf; margin-bottom: 8px;">${message}</p>
-      <p style="font-family: 'AirbnbCerealApp-Medium', Helvetica; font-weight: 400; color: #aaaaaa; font-size: 0.875rem;">Please wait...</p>
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center;">
+      <div class="knugget-spinner" style="margin-bottom: 20px;"></div>
+      <p style="font-family: 'Inter', sans-serif; font-weight: 600; color: #ffffff; font-size: 16px; margin-bottom: 8px;">${message}</p>
+      <p style="font-family: 'Inter', sans-serif; font-weight: 400; color: #aaaaaa; font-size: 14px;">Please wait...</p>
     </div>
   `;
 }
@@ -22,19 +26,20 @@ export function showError(
   retryFunction: () => void
 ) {
   contentElement.innerHTML = `
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; text-align: center;">
-      <div style="color: #ff4757; margin-bottom: 16px;">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M12 7V13M12 16V16.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center;">
+      <div style="margin-bottom: 20px; color: #ff5757;">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
       </div>
-      <p style="font-family: 'AirbnbCerealApp-Medium', Helvetica; font-weight: 500; color: #dfdfdf; margin-bottom: 8px;">Error</p>
-      <p style="font-family: 'AirbnbCerealApp-Medium', Helvetica; font-weight: 400; color: #aaaaaa; font-size: 0.875rem; margin-bottom: 16px;">${errorMessage}</p>
+      <p style="font-family: 'Inter', sans-serif; font-weight: 600; color: #ffffff; font-size: 16px; margin-bottom: 8px;">Error</p>
+      <p style="font-family: 'Inter', sans-serif; font-weight: 400; color: #aaaaaa; font-size: 14px; margin-bottom: 20px;">${errorMessage}</p>
       ${
         typeof retryFunction === "function"
           ? `
-        <button id="retry-btn" style="background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%); color: #362b1e; font-family: 'AirbnbCerealApp-Black', Helvetica; font-weight: 900; font-size: 0.75rem; padding: 6px 12px; border: none; border-radius: 17.5px; cursor: pointer;">
+        <button id="retry-btn" style="background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%); color: #ffffff; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer;">
           Try Again
         </button>
       `
@@ -55,20 +60,21 @@ export function showError(
 // Function to show login required state for summary tab
 export function showLoginRequired(summaryContentElement: HTMLElement) {
   summaryContentElement.innerHTML = `
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 20px; text-align: center;">
-      <div style="color: #ffc048; margin-bottom: 16px;">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 15v2m0 0v2m0-2h2m-2 0H8m10-6a6 6 0 01-6 6 6 6 0 01-6-6 6 6 0 016-6 6 6 0 016 6z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center;">
+      <div style="margin-bottom: 20px; color: #00a8ff;">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
         </svg>
       </div>
-      <p style="font-family: 'AirbnbCerealApp-Black', Helvetica; font-weight: 900; color: #dfdfdf; margin-bottom: 8px;">Login Required</p>
-      <p style="font-family: 'AirbnbCerealApp-Medium', Helvetica; font-weight: 400; color: #aaaaaa; font-size: 0.875rem; margin-bottom: 16px;">Please log in to generate and view summaries</p>
-      <div style="display: flex; gap: 8px;">
-        <button id="knugget-login-btn" style="background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%); color: #362b1e; font-family: 'AirbnbCerealApp-Black', Helvetica; font-weight: 900; font-size: 0.75rem; padding: 6px 12px; border: none; border-radius: 17.5px; cursor: pointer;">
-          Login
+      <p style="font-family: 'Inter', sans-serif; font-weight: 600; color: #ffffff; font-size: 16px; margin-bottom: 8px;">Login Required</p>
+      <p style="font-family: 'Inter', sans-serif; font-weight: 400; color: #aaaaaa; font-size: 14px; margin-bottom: 20px;">Please log in to generate and view summaries</p>
+      <div style="display: flex; gap: 12px;">
+        <button id="knugget-login-btn" style="background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%); color: #ffffff; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer;">
+          Log In
         </button>
-        <button id="knugget-signup-btn" style="background: #2e2e2e; color: #cccccc; font-family: 'AirbnbCerealApp-Black', Helvetica; font-weight: 900; font-size: 0.75rem; padding: 6px 12px; border: none; border-radius: 17.5px; cursor: pointer;">
-          Create Account
+        <button id="knugget-signup-btn" style="background: #333333; color: #ffffff; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer;">
+          Sign Up
         </button>
       </div>
     </div>
@@ -86,7 +92,6 @@ export function showLoginRequired(summaryContentElement: HTMLElement) {
 
   if (signupBtn) {
     signupBtn.addEventListener("click", () => {
-      // Pass the current URL to the background script so it can be included in registration flow
       chrome.runtime.sendMessage({
         type: "OPEN_SIGNUP_PAGE",
         payload: { url: window.location.href },
@@ -116,31 +121,42 @@ export function displaySummary(
     "<strong>$1</strong>"
   );
 
-  // Create HTML for key points
-  const keyPointsHTML =
-    normalizedSummary.keyPoints.length > 0
-      ? normalizedSummary.keyPoints
-          .map(
-            (point: string) => `
-        <li class="knugget-list-item">
-          <span class="knugget-takeaway-text">${point}</span>
-        </li>
-      `
-          )
-          .join("")
-      : `<li class="knugget-list-item">
-         <span class="knugget-takeaway-text">No key points available</span>
-       </li>`;
+  // Create HTML for key points - use the styling from Image 1
+  const keyPointsHTML = summary.keyPoints
+    .map((point) => {
+      // Extract emoji and text
+      const match = point.match(
+        /^([\u{1F300}-\u{1F6FF}\u{2600}-\u{26FF}])\s+(.*)/u
+      );
+      if (match) {
+        const emoji = match[1];
+        const text = match[2];
 
-  // Update content
+        return `
+        <div class="key-point-item">
+          <div class="key-point-emoji">${emoji}</div>
+          <div class="key-point-text">${text}</div>
+        </div>
+      `;
+      }
+      return `
+    <div class="key-point-item">
+      <div class="key-point-emoji"></div>
+      <div class="key-point-text">${point}</div>
+    </div>
+  `;
+    })
+    .join("");
+
+  // Update content with improved styling
   summaryContentElement.innerHTML = `
-    <h2 class="knugget-title">${normalizedSummary.title}</h2>
+    <h2 class="knugget-title">${summary.title}</h2>
     <div class="knugget-summary-content">
       ${formattedSummary}
     </div>
-    <ul class="knugget-list">
+    <div class="key-points-container">
       ${keyPointsHTML}
-    </ul>
+    </div>
   `;
 
   // Add save button if not already present
@@ -185,7 +201,7 @@ export function displaySummary(
             saveButton.disabled = false;
           }, 2000);
         } else {
-          saveButton.textContent = "Failed";
+          saveButton.textContent = "Error";
           setTimeout(() => {
             saveButton.textContent = "Save";
             saveButton.disabled = false;
@@ -205,35 +221,31 @@ export function displaySummary(
 
 // Function to inject Knugget panel into the page
 export function injectKnuggetPanel(targetElement: HTMLElement) {
-  console.log("Knugget AI: Injecting panel with updated UI");
+  console.log("Knugget AI: Injecting panel with professional styling");
 
   // Create our container
   const knuggetContainer = document.createElement("div");
   knuggetContainer.id = "knugget-container";
   knuggetContainer.className = "knugget-extension";
 
-  // Create the UI based on the design in the provided image
+  // Create the UI based on the design in the reference images
   knuggetContainer.innerHTML = `
     <div class="knugget-box">
       <!-- Header with logo and credits -->
       <div class="knugget-header">
-        <!-- Gold icon -->
+        <!-- Logo -->
         <div style="display: flex; align-items: center;">
-          <img
-            alt="Gold ingots"
-            src="https://i.ibb.co/23dhZ9F/gold-ingots.png"
-            style="width: 21px; height: 21px; margin-right: 8px;"
-          />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
+            <path d="M12 2L22 12L12 22L2 12L12 2Z" fill="#00a8ff"/>
+          </svg>
           <span class="knugget-logo">Knugget</span>
         </div>
         
         <!-- Credits Badge -->
         <div class="knugget-credits">
-          <img
-            alt="Gold bar"
-            src="https://i.ibb.co/zZQK6W0/gold-bar.png"
-            style="width: 18px; height: 18px; margin-right: 4px;"
-          />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 6px;">
+            <path d="M20 6H4V18H20V6Z" fill="#00a8ff"/>
+          </svg>
           3 Free Credits Left
         </div>
       </div>
@@ -272,23 +284,10 @@ export function injectKnuggetPanel(targetElement: HTMLElement) {
   // Add the container to the target element
   targetElement.prepend(knuggetContainer);
 
-  // Show loading state initially
-  const transcriptContent = document.getElementById("transcript-content");
-  const summaryContent = document.getElementById("summary-content");
-
-  if (transcriptContent) {
-    showLoading(transcriptContent, "Loading Transcript");
-  }
-
-  if (summaryContent) {
-    // Still initialize the summary content, but it will be hidden
-    showLoading(summaryContent, "Generating Key Takeaways");
-  }
-
   // Setup event listeners for tabs
   setupTabEventListeners();
 
-  // Load transcript by default
+  // Load initial content
   loadAndDisplayTranscript();
 }
 
@@ -335,275 +334,300 @@ function setupTabEventListeners() {
 }
 
 // Import these functions from your contentHandler.js
-import {
-  loadAndDisplayTranscript,
-  loadAndDisplaySummary,
-} from "./contentHandler";
 
 // Add styles to the page
 export function addStyles() {
   const style = document.createElement("style");
   style.textContent = `
     /* Knugget AI Extension Styling */
-    
-    /* Base styles */
-    .knugget-extension {
-      font-family: "AirbnbCerealApp", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      margin-bottom: 16px;
-      width: 100%;
-      max-width: 465px;
-    }
-    
-    .knugget-box {
-      background-color: black;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-      height: 519px;
-      position: relative;
-    }
-    
-    /* Header section */
-    .knugget-header {
-      padding: 8px 15px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .knugget-logo {
-      font-family: "AirbnbCerealApp-Black", Helvetica;
-      font-weight: 900;
-      background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-      text-fill-color: transparent;
-      font-size: 1.25rem;
-      letter-spacing: 1.27px;
-    }
-    
-    .knugget-credits {
-      font-family: "AirbnbCerealApp-Medium", Helvetica;
-      font-weight: 500;
-      color: #dfdfdf;
-      font-size: 0.75rem;
-      letter-spacing: 0.76px;
-      display: flex;
-      align-items: center;
-    }
-    
-    /* Separator line */
-    .knugget-separator {
-      height: 1px;
-      background-color: #333;
-      margin: 0 12px;
-    }
-    
-    /* Tab navigation */
-    .knugget-tabs {
-      display: flex;
-      gap: 8px;
-      padding: 8px 12px;
-    }
-    
-    .knugget-tab {
-      flex: 1;
-      height: 37px;
-      border-radius: 17.5px;
-      font-family: "AirbnbCerealApp-Black", Helvetica;
-      font-weight: 900;
-      font-size: 15px;
-      letter-spacing: 0.95px;
-      border: none;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-    }
-    
-    .knugget-tab-inactive {
-      background-color: #2e2e2e;
-      color: #cccccc;
-    }
-    
-    .knugget-tab-active {
-      background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%);
-      color: #362b1e;
-    }
-    
-    /* Content area */
-    .knugget-content {
-      margin: 10px 12px;
-      background-color: #0f0f0f;
-      border-radius: 10px;
-      height: 388px;
-      overflow: hidden;
-    }
-    
-    .knugget-content-inner {
-      padding: 14px;
-      height: 100%;
-      overflow-y: auto;
-    }
-    
-    .knugget-title {
-      font-family: "AirbnbCerealApp-Black", Helvetica;
-      font-weight: 900;
-      color: #dfdfdf;
-      font-size: 1.25rem;
-      margin-bottom: 16px;
-      letter-spacing: 0.25px;
-    }
-    
-    /* List items */
-    .knugget-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
-    
-    .knugget-list-item {
-      display: flex;
-      align-items: flex-start;
-    }
-    
-    .knugget-bullet {
-      width: 10px;
-      height: 10px;
-      background-color: #dfdfdf;
-      border-radius: 5px;
-      margin-top: 6px;
-      margin-right: 20px;
-      flex-shrink: 0;
-    }
-    
-    .knugget-transcript-text {
-      font-family: "Istok Web", Helvetica;
-      font-weight: bold;
-      color: #f6f6f6;
-      font-size: 1.25rem;
-    }
-    
-    .knugget-takeaway-text {
-      font-family: "AirbnbCerealApp-Medium", Helvetica;
-      font-weight: 500;
-      color: #dfdfdf;
-      font-size: 0.875rem;
-      letter-spacing: 0.12px;
-      line-height: 1.4;
-    }
-    
-    /* Save button */
-    .knugget-save-btn {
-      position: absolute;
-      bottom: 7px;
-      right: 14px;
-      height: 24px;
-      width: 54px;
-      background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%);
-      color: #362b1e;
-      font-family: "AirbnbCerealApp-Black", Helvetica;
-      font-weight: 900;
-      font-size: 0.75rem;
-      letter-spacing: 0.76px;
-      border: none;
-      border-radius: 17.5px;
-      cursor: pointer;
-    }
-    
-    /* Custom scrollbar */
-    .knugget-content-inner::-webkit-scrollbar {
-      width: 2.5px;
-    }
-    
-    .knugget-content-inner::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    
-    .knugget-content-inner::-webkit-scrollbar-thumb {
-      background-color: #aaaaaa;
-      border-radius: 5.5px;
-    }
-    
-    /* Transcript timestamp */
-    .knugget-timestamp {
-      font-family: 'AirbnbCerealApp-Medium', Helvetica;
-      font-weight: 500;
-      color: #ffa500;
-      font-size: 0.875rem;
-      min-width: 60px;
-      margin-right: 12px;
-      padding-top: 3px;
-      flex-shrink: 0;
-    }
-    
-    /* Loading spinner */
-    .knugget-spinner {
-      width: 32px;
-      height: 32px;
-      border: 2px solid rgba(255, 177, 0, 0.1);
-      border-radius: 50%;
-      border-top: 2px solid rgba(255, 70, 6, 1);
-      animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    /* Summary formatting */
-    .knugget-summary-content {
-      font-family: "AirbnbCerealApp-Medium", Helvetica;
-      font-weight: 400;
-      color: #dfdfdf;
-      font-size: 0.875rem;
-      line-height: 1.5;
-      margin-bottom: 16px;
-      padding: 12px;
-      background-color: rgba(255, 255, 255, 0.05);
-      border-radius: 8px;
-    }
-    
-    .knugget-summary-content strong {
-      color: #ffa500;
-      font-weight: 700;
-    }
-    
-    .knugget-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-    
-    .knugget-list-item {
-      display: flex;
-      align-items: flex-start;
-      padding: 8px 12px;
-      background-color: rgba(255, 255, 255, 0.05);
-      border-radius: 8px;
-      transition: background-color 0.2s ease;
-    }
-    
-    .knugget-list-item:hover {
-      background-color: rgba(255, 255, 255, 0.1);
-    }
-    
-    .knugget-takeaway-text {
-      font-family: "AirbnbCerealApp-Medium", Helvetica;
-      font-weight: 400;
-      color: #dfdfdf;
-      font-size: 0.875rem;
-      letter-spacing: 0.12px;
-      line-height: 1.4;
-    }
+/* Enhanced professional styling for Knugget extension */
+
+/* Base styles */
+.knugget-extension {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  margin-bottom: 16px;
+  width: 100%;
+  max-width: 465px;
+}
+
+.knugget-box {
+  background-color: #0f0f0f;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  height: 519px;
+  position: relative;
+}
+
+/* Header section */
+.knugget-header {
+  padding: 12px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.knugget-logo {
+  font-family: "AirbnbCerealApp-Black", Helvetica, Arial, sans-serif;
+  font-weight: 900;
+  background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-fill-color: transparent;
+  font-size: 18px;
+  letter-spacing: 1px;
+}
+
+.knugget-credits {
+  font-family: "AirbnbCerealApp-Medium", Helvetica, Arial, sans-serif;
+  font-weight: 500;
+  color: #ffffff;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+}
+
+/* Separator line */
+.knugget-separator {
+  height: 1px;
+  background-color: #333;
+  margin: 0 12px;
+}
+
+/* Tab navigation */
+.knugget-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+}
+
+.knugget-tab {
+  flex: 1;
+  height: 42px;
+  border-radius: 21px;
+  font-family: "AirbnbCerealApp-Bold", Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.knugget-tab-inactive {
+  background-color: #222222;
+  color: #cccccc;
+}
+
+.knugget-tab-active {
+  background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%);
+  color: #ffffff;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+}
+
+/* Content area */
+.knugget-content {
+  margin: 10px 12px;
+  background-color: #121212;
+  border-radius: 10px;
+  height: 388px;
+  overflow: hidden;
+}
+
+.knugget-content-inner {
+  padding: 14px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.knugget-title {
+  font-family: "AirbnbCerealApp-Bold", Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  color: #ffffff;
+  font-size: 18px;
+  margin-bottom: 16px;
+  letter-spacing: 0.5px;
+}
+
+/* List items - Summary */
+.knugget-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.knugget-list-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.knugget-list-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.knugget-bullet {
+  width: 7px;
+  height: 7px;
+  background-color: #dfdfdf;
+  border-radius: 50%;
+  margin-top: 7px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.knugget-takeaway-text {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  color: #ffffff;
+  font-size: 15px;
+  letter-spacing: 0.2px;
+  line-height: 1.5;
+}
+
+/* Transcript styles */
+.knugget-timestamp {
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 500;
+  color: #ffa500;
+  font-size: 13px;
+  min-width: 40px;
+  margin-right: 12px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.knugget-transcript-text {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  color: #ffffff;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.transcript-segment {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.transcript-segment:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Summary content */
+.knugget-summary-content {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-weight: 400;
+  color: #ffffff;
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  padding: 16px;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+
+.knugget-summary-content strong {
+  color: #ffa500;
+  font-weight: 600;
+}
+
+/* Save button */
+.knugget-save-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 14px;
+  height: 32px;
+  width: 64px;
+  background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%);
+  color: #ffffff;
+  font-family: "AirbnbCerealApp-Bold", Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+}
+
+.knugget-save-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Custom scrollbar */
+.knugget-content-inner::-webkit-scrollbar {
+  width: 5px;
+}
+
+.knugget-content-inner::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2.5px;
+}
+
+.knugget-content-inner::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 177, 0, 0.5);
+  border-radius: 2.5px;
+}
+
+/* Loading spinner */
+.knugget-spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(255, 177, 0, 0.1);
+  border-radius: 50%;
+  border-top: 2px solid rgba(255, 70, 6, 1);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Key Points Styling - Similar to Image 1 */
+.key-point-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px;
+  margin-bottom: 12px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.key-point-emoji {
+  margin-right: 12px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.key-point-text {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #ffffff;
+  flex: 1;
+}
+
+/* Focus state */
+.knugget-tab:focus, .knugget-save-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 177, 0, 0.5);
+}
       
   `;
   document.head.appendChild(style);
