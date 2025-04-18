@@ -59,7 +59,26 @@ export async function getAuthToken(): Promise<string | null> {
         }
       } else {
         console.warn("No token found in storage");
-        resolve(null);
+
+        // Force background script to check website cookies
+        console.log("Asking background script to check for website login...");
+        chrome.runtime.sendMessage(
+          { type: "FORCE_CHECK_WEBSITE_LOGIN" },
+          () => {
+            // After forcing website login check, try again once to get token
+            setTimeout(() => {
+              chrome.storage.local.get(["knuggetUserInfo"], (result) => {
+                if (result.knuggetUserInfo && result.knuggetUserInfo.token) {
+                  console.log("Found token after checking website login!");
+                  resolve(result.knuggetUserInfo.token);
+                } else {
+                  console.log("Still no token after checking website login");
+                  resolve(null);
+                }
+              });
+            }, 1000); // Short delay to allow background to finish
+          }
+        );
       }
     });
   });

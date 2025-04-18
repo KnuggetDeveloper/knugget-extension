@@ -5,6 +5,7 @@ import {
   setupPanelEventListeners,
   setupURLChangeDetection,
   setupMessageListener,
+  setupButtonEventListeners,
 } from "./domHandler";
 import { observeYouTubeDOM } from "./domObserver";
 import { loadAndDisplayTranscript, resetContentData } from "./contentHandler";
@@ -80,6 +81,11 @@ function initKnuggetAI(): void {
   // Log the initialization
   console.log(`Initializing Knugget AI for video ID: ${videoId}`);
 
+  // Force check with background script for authentication first
+  chrome.runtime.sendMessage({ type: "FORCE_CHECK_WEBSITE_LOGIN" }, () => {
+    console.log("Sent authentication check to background script");
+  });
+
   // Set up URL change detection only once
   setupURLChangeDetection(handleURLChange);
 
@@ -94,6 +100,9 @@ function initKnuggetAI(): void {
 export function initPanelAfterInjection(): void {
   // Set up event listeners
   setupPanelEventListeners();
+
+  // Add event listeners to buttons
+  setupButtonEventListeners();
 
   // Load transcript by default
   loadAndDisplayTranscript();

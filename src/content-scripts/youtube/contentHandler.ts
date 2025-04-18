@@ -32,7 +32,7 @@ export async function loadAndDisplayTranscript(): Promise<void> {
 
     // Get current video ID to track which video we're processing
     const videoId = new URLSearchParams(window.location.search).get("v") || "";
-    
+
     // Update our tracking of the current video ID
     if (currentVideoId !== videoId) {
       console.log(`Video ID changed from ${currentVideoId} to ${videoId}`);
@@ -82,24 +82,76 @@ export async function loadAndDisplaySummary(): Promise<void> {
   try {
     // Get current video ID
     const videoId = new URLSearchParams(window.location.search).get("v") || "";
-    
+
     // Check if video changed since last summary
     if (currentVideoId !== videoId) {
-      console.log(`Video ID changed from ${currentVideoId} to ${videoId} during summary generation`);
+      console.log(
+        `Video ID changed from ${currentVideoId} to ${videoId} during summary generation`
+      );
       currentVideoId = videoId;
       resetContentData(); // Reset data for new video
     }
 
+    console.log("Checking authentication status before generating summary...");
+
+    // Force a check with the background script first
+    await new Promise<void>((resolve) => {
+      chrome.runtime.sendMessage({ type: "FORCE_CHECK_WEBSITE_LOGIN" }, () => {
+        console.log("Initial website cookie check completed");
+        resolve();
+      });
+    });
+
+    // Give background time to process
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
     // ✅ CHECK IF USER IS LOGGED IN FIRST
-    const isLoggedIn = await isUserLoggedIn();
+    console.log("Getting auth token from storage after cookie check");
+    let isLoggedIn = await isUserLoggedIn();
+    console.log("Initial auth check result:", isLoggedIn);
+
+    // If not logged in, try one more time with force check
+    if (!isLoggedIn) {
+      console.warn(
+        "Not logged in on first check, trying alternative auth check method..."
+      );
+
+      // Check directly with an API call that includes credentials
+      try {
+        console.log("Making direct API call with credentials to check auth...");
+        const response = await fetch("http://localhost:3000/api/auth/me", {
+          method: "GET",
+          credentials: "include",
+        });
+
+        if (response.ok) {
+          console.log(
+            "User authenticated via direct API call with credentials!"
+          );
+          isLoggedIn = true;
+        } else {
+          console.warn("Direct API auth check failed:", response.status);
+        }
+      } catch (error) {
+        console.error("Error during direct API auth check:", error);
+      }
+
+      if (!isLoggedIn) {
+        console.log("All auth checks failed - user is not authenticated");
+      }
+    }
+
     if (!isLoggedIn) {
       console.warn("User not authenticated — login required");
       showLoginRequired(summaryContentElement); // Shows login UI or prompt
       return;
     }
 
+    console.log("User is authenticated! Proceeding with summary generation...");
+
     // Load transcript if needed
     if (!transcriptData) {
+      console.log("No transcript data - fetching transcript first...");
       const transcriptResponse = await extractTranscript();
 
       if (!transcriptResponse.success || !transcriptResponse.data) {
@@ -109,6 +161,10 @@ export async function loadAndDisplaySummary(): Promise<void> {
       }
 
       transcriptData = transcriptResponse.data;
+      console.log(
+        "Transcript extraction successful, entries:",
+        transcriptData.length
+      );
     }
 
     // Get video metadata

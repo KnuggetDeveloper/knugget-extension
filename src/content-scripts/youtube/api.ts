@@ -141,23 +141,58 @@ export async function apiRequest<T>(
       "Content-Type": "application/json",
     };
 
-    // Add auth token if required
+    // Set default request options
+    const requestInit: RequestInit = {
+      method,
+      headers,
+      credentials: "include", // Always include credentials (cookies)
+    };
+
+    // Add auth token if available
     if (requiresAuth) {
       const token = await getAuthToken();
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       } else if (requiresAuth) {
-        // CHANGE: Return early if token is required but not available
-        console.warn(
-          "Auth token required but not available for request:",
-          endpoint
+        // Force background to check website cookies
+        console.log(
+          "No token found but authentication required. Asking background script to check website login..."
         );
-        return {
-          success: false,
-          error: "Authentication required. Please log in.",
-          status: 401,
-        };
+
+        // Wait for background script to check website login
+        await new Promise<void>((resolve) => {
+          chrome.runtime.sendMessage(
+            { type: "FORCE_CHECK_WEBSITE_LOGIN" },
+            () => {
+              console.log("Forced website login check completed");
+              resolve();
+            }
+          );
+        });
+
+        // Check again after background has checked
+        const tokenAfterCheck = await getAuthToken();
+        if (tokenAfterCheck) {
+          console.log("Token found after background check");
+          headers["Authorization"] = `Bearer ${tokenAfterCheck}`;
+        } else {
+          // Still no token found
+          console.warn(
+            "Auth token required but not available for request:",
+            endpoint
+          );
+          return {
+            success: false,
+            error: "Authentication required. Please log in.",
+            status: 401,
+          };
+        }
       }
+    }
+
+    // Add request body if data provided
+    if (data) {
+      requestInit.body = JSON.stringify(data);
     }
 
     // CHANGE: Log request details for debugging
@@ -165,14 +200,11 @@ export async function apiRequest<T>(
       method,
       requiresAuth,
       hasAuthHeader: !!headers["Authorization"],
+      includeCredentials: true,
     });
 
     // Make the request
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method,
-      headers,
-      body: data ? JSON.stringify(data) : undefined,
-    });
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, requestInit);
 
     // Handle network errors
     if (!response.ok) {

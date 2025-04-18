@@ -69,13 +69,19 @@ export function showLoginRequired(summaryContentElement: HTMLElement) {
         </svg>
       </div>
       <p style="font-family: 'Inter', sans-serif; font-weight: 600; color: #ffffff; font-size: 16px; margin-bottom: 8px;">Login Required</p>
-      <p style="font-family: 'Inter', sans-serif; font-weight: 400; color: #aaaaaa; font-size: 14px; margin-bottom: 20px;">Please log in to generate and view summaries</p>
-      <div style="display: flex; gap: 12px;">
-        <button id="knugget-login-btn" style="background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%); color: #ffffff; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer;">
+      <p style="font-family: 'Inter', sans-serif; font-weight: 400; color: #aaaaaa; font-size: 14px; margin-bottom: 20px;">
+        Please log in to generate and view summaries. If you've already logged in on the website, 
+        clicking the button below will sync your account with the extension.
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 220px;">
+        <button id="knugget-login-btn" style="background: linear-gradient(90deg, rgba(255,177,0,1) 0%, rgba(255,70,6,1) 100%); color: #ffffff; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; width: 100%;">
           Log In
         </button>
-        <button id="knugget-signup-btn" style="background: #333333; color: #ffffff; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer;">
+        <button id="knugget-signup-btn" style="background: #333333; color: #ffffff; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; padding: 8px 16px; border: none; border-radius: 20px; cursor: pointer; width: 100%;">
           Sign Up
+        </button>
+        <button id="knugget-sync-btn" style="background: #2a2a2a; color: #ffffff; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; padding: 8px 16px; border: 1px solid #555; border-radius: 20px; cursor: pointer; width: 100%;">
+          Sync with Website
         </button>
       </div>
     </div>
@@ -84,6 +90,9 @@ export function showLoginRequired(summaryContentElement: HTMLElement) {
   // Add event listeners to login and signup buttons
   const loginBtn = document.getElementById("knugget-login-btn");
   const signupBtn = document.getElementById("knugget-signup-btn");
+  const syncBtn = document.getElementById(
+    "knugget-sync-btn"
+  ) as HTMLButtonElement;
 
   if (loginBtn) {
     loginBtn.addEventListener("click", () => {
@@ -96,6 +105,22 @@ export function showLoginRequired(summaryContentElement: HTMLElement) {
       chrome.runtime.sendMessage({
         type: "OPEN_SIGNUP_PAGE",
         payload: { url: window.location.href },
+      });
+    });
+  }
+
+  if (syncBtn) {
+    syncBtn.addEventListener("click", () => {
+      // Show syncing state
+      syncBtn.textContent = "Syncing...";
+      syncBtn.disabled = true;
+
+      // Force background to check cookies and reload after a delay
+      chrome.runtime.sendMessage({ type: "FORCE_CHECK_WEBSITE_LOGIN" }, () => {
+        setTimeout(() => {
+          // Reload summary panel after sync attempt
+          loadAndDisplaySummary();
+        }, 2000);
       });
     });
   }
@@ -160,175 +185,101 @@ export function displaySummary(
     </div>
   `;
 
-  // Add save button if not already present
-  const existingSaveBtn = document.getElementById("save-btn");
-  if (!existingSaveBtn) {
-    const saveButton = document.createElement("button");
-    saveButton.id = "save-btn";
-    saveButton.className = "knugget-save-btn";
+  // Get the save button
+  const saveButton = document.getElementById("save-btn") as HTMLButtonElement;
 
-    // Set initial button text based on whether summary is already saved
-    saveButton.textContent = summary.alreadySaved ? "Saved" : "Save";
-    saveButton.disabled = !!summary.alreadySaved;
+  if (saveButton) {
+    // Make sure save button is visible when in summary tab
+    saveButton.style.display = "block";
 
+    // Set button text and state based on whether summary is already saved
     if (summary.alreadySaved) {
+      saveButton.textContent = "Saved";
+      saveButton.disabled = true;
       saveButton.classList.add("already-saved");
-    }
+    } else {
+      saveButton.textContent = "Save";
+      saveButton.disabled = false;
+      saveButton.classList.remove("already-saved");
 
-    // Add to container
-    const container = document.querySelector(".knugget-box");
-    if (container) {
-      container.appendChild(saveButton);
-    }
+      // Add event listener to save button if not already saved
+      // Remove existing listeners first to prevent duplicates
+      const newSaveButton = saveButton.cloneNode(true) as HTMLButtonElement;
+      saveButton.parentNode?.replaceChild(newSaveButton, saveButton);
 
-    // Add event listener
-    saveButton.addEventListener("click", async () => {
-      if (saveButton.disabled) {
-        return; // Don't do anything if button is disabled
-      }
+      newSaveButton.addEventListener("click", async () => {
+        try {
+          newSaveButton.disabled = true;
+          newSaveButton.textContent = "Saving...";
 
-      try {
-        saveButton.disabled = true;
-        saveButton.textContent = "Saving...";
+          // Get video metadata
+          const videoId =
+            new URLSearchParams(window.location.search).get("v") || "";
+          const videoUrl = window.location.href;
 
-        // Get video metadata
-        const videoId =
-          new URLSearchParams(window.location.search).get("v") || "";
-        const videoUrl = window.location.href;
+          // Get the transcript data to save along with the summary
+          const transcriptData = getTranscriptData();
+          const transcriptText = transcriptData
+            ? transcriptData.map((s) => s.text).join(" ")
+            : "";
 
-        // Get the transcript data to save along with the summary
-        const transcriptData = getTranscriptData();
-        const transcriptText = transcriptData
-          ? transcriptData.map((s) => s.text).join(" ")
-          : "";
+          // Prepare summary for saving
+          const summaryToSave = {
+            ...summary,
+            videoId,
+            sourceUrl: videoUrl,
+            source: "youtube",
+            transcript: transcriptText, // Include transcript
+          };
 
-        // Prepare summary for saving
-        const summaryToSave = {
-          ...summary,
-          videoId,
-          sourceUrl: videoUrl,
-          source: "youtube",
-          transcript: transcriptText, // Include transcript
-        };
+          console.log("Saving summary:", {
+            videoId,
+            title: summaryToSave.title,
+            transcriptLength: transcriptText.length,
+          });
 
-        // Call API to save summary
-        const response = await saveSummary(summaryToSave);
+          // Call API to save summary
+          const response = await saveSummary(summaryToSave);
 
-        if (response && response.success) {
-          saveButton.textContent = "Saved";
-          saveButton.classList.add("already-saved");
-          // Don't re-enable the button since it's now permanently saved
-        } else {
-          saveButton.textContent = "Error";
+          if (response && response.success) {
+            newSaveButton.textContent = "Saved";
+            newSaveButton.classList.add("already-saved");
+            newSaveButton.disabled = true;
+            console.log("Summary saved successfully!");
+          } else {
+            console.error("Error saving summary:", response?.error);
+            newSaveButton.textContent = "Error";
+            setTimeout(() => {
+              newSaveButton.textContent = "Save";
+              newSaveButton.disabled = false;
+            }, 2000);
+          }
+        } catch (error) {
+          console.error("Exception when saving summary:", error);
+          newSaveButton.textContent = "Error";
           setTimeout(() => {
-            saveButton.textContent = "Save";
-            saveButton.disabled = false;
+            newSaveButton.textContent = "Save";
+            newSaveButton.disabled = false;
           }, 2000);
         }
-      } catch (error) {
-        console.error("Error saving summary:", error);
-        saveButton.textContent = "Error";
-        setTimeout(() => {
-          saveButton.textContent = "Save";
-          saveButton.disabled = false;
-        }, 2000);
-      }
-    });
-  } else if (summary.alreadySaved) {
-    // If summary is already saved, update existing button
-    const saveButton = existingSaveBtn as HTMLButtonElement;
-    saveButton.textContent = "Saved";
-    saveButton.disabled = true;
-    saveButton.classList.add("already-saved");
-  } else {
-    // Reset button state if summary is not saved
-    const saveButton = existingSaveBtn as HTMLButtonElement;
-    saveButton.textContent = "Save";
-    saveButton.disabled = false;
-    saveButton.classList.remove("already-saved");
+      });
+    }
   }
 }
 
-// Function to inject Knugget panel into the page
-export function injectKnuggetPanel(targetElement: HTMLElement) {
-  console.log("Knugget AI: Injecting panel with professional styling");
-
-  // Create our container
-  const knuggetContainer = document.createElement("div");
-  knuggetContainer.id = "knugget-container";
-  knuggetContainer.className = "knugget-extension";
-
-  // Create the UI based on the design in the reference images
-  knuggetContainer.innerHTML = `
-    <div class="knugget-box">
-      <!-- Header with logo and credits -->
-      <div class="knugget-header">
-        <!-- Logo -->
-        <div style="display: flex; align-items: center;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
-            <path d="M12 2L22 12L12 22L2 12L12 2Z" fill="#00a8ff"/>
-          </svg>
-          <span class="knugget-logo">Knugget</span>
-        </div>
-        
-        <!-- Credits Badge -->
-        <div class="knugget-credits">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 6px;">
-            <path d="M20 6H4V18H20V6Z" fill="#00a8ff"/>
-          </svg>
-          3 Free Credits Left
-        </div>
-      </div>
-      
-      <!-- Separator Line -->
-      <div class="knugget-separator"></div>
-      
-      <!-- Tab Navigation -->
-      <div class="knugget-tabs">
-        <button id="transcript-tab" class="knugget-tab knugget-tab-active">
-          View Transcript
-        </button>
-        <button id="summary-tab" class="knugget-tab knugget-tab-inactive">
-          View Key Takeaways
-        </button>
-      </div>
-      
-      <!-- Content Area -->
-      <div class="knugget-content">
-        <!-- Transcript content (initially visible) -->
-        <div id="transcript-content" class="knugget-content-inner">
-          <!-- Transcript will be loaded here -->
-        </div>
-        
-        <!-- Summary content (initially hidden) -->
-        <div id="summary-content" class="knugget-content-inner" style="display: none;">
-          <!-- Summary will be loaded here -->
-        </div>
-      </div>
-      
-      <!-- Save Button -->
-      <button id="save-btn" class="knugget-save-btn">Save</button>
-    </div>
-  `;
-
-  // Add the container to the target element
-  targetElement.prepend(knuggetContainer);
-
-  // Setup event listeners for tabs
-  setupTabEventListeners();
-
-  // Load initial content
-  loadAndDisplayTranscript();
-}
-
-// Function to set up tab event listeners
 function setupTabEventListeners() {
   const transcriptTab = document.getElementById("transcript-tab");
   const summaryTab = document.getElementById("summary-tab");
   const transcriptContent = document.getElementById("transcript-content");
   const summaryContent = document.getElementById("summary-content");
+  const saveButton = document.getElementById("save-btn");
 
   if (transcriptTab && summaryTab && transcriptContent && summaryContent) {
+    // Initially hide the save button when viewing transcript
+    if (saveButton) {
+      saveButton.style.display = "none";
+    }
+
     // Transcript tab click
     transcriptTab.addEventListener("click", () => {
       // Update tab styles
@@ -340,6 +291,11 @@ function setupTabEventListeners() {
       // Show transcript, hide summary
       transcriptContent.style.display = "block";
       summaryContent.style.display = "none";
+
+      // Hide save button when viewing transcript
+      if (saveButton) {
+        saveButton.style.display = "none";
+      }
 
       // Load transcript content if needed
       loadAndDisplayTranscript();
@@ -357,12 +313,98 @@ function setupTabEventListeners() {
       summaryContent.style.display = "block";
       transcriptContent.style.display = "none";
 
+      // Show save button when viewing summary
+      if (saveButton) {
+        saveButton.style.display = "block";
+      }
+
       // Load summary content if needed
       loadAndDisplaySummary();
     });
   }
 }
 
+// Updated injectKnuggetPanel function to initially hide the save button
+export function injectKnuggetPanel(targetElement: HTMLElement) {
+  console.log("Knugget AI: Injecting panel with professional styling");
+
+  // Create our container
+  const knuggetContainer = document.createElement("div");
+  knuggetContainer.id = "knugget-container";
+  knuggetContainer.className = "knugget-extension";
+
+  // Create the UI based on the design in the reference images
+  knuggetContainer.innerHTML = `
+  <div class="knugget-box">
+    <!-- Header with logo and credits -->
+    <div class="knugget-header">
+      <!-- Logo -->
+      <div style="display: flex; align-items: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 8px;">
+          <path d="M12 2L22 12L12 22L2 12L12 2Z" fill="#00a8ff"/>
+        </svg>
+        <span class="knugget-logo">Knugget</span>
+      </div>
+      
+      <!-- Credits Badge -->
+      <div class="knugget-credits">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 6px;">
+          <path d="M20 6H4V18H20V6Z" fill="#00a8ff"/>
+        </svg>
+        3 Free Credits Left
+      </div>
+    </div>
+    
+    <!-- Separator Line -->
+    <div class="knugget-separator"></div>
+    
+    <!-- Tab Navigation -->
+    <div class="knugget-tabs">
+      <button id="transcript-tab" class="knugget-tab knugget-tab-active">
+        View Transcript
+      </button>
+      <button id="summary-tab" class="knugget-tab knugget-tab-inactive">
+        View Key Takeaways
+      </button>
+    </div>
+    
+    <!-- Content Area -->
+    <div class="knugget-content">
+      <!-- Transcript content (initially visible) -->
+      <div id="transcript-content" class="knugget-content-inner">
+        <!-- Transcript will be loaded here -->
+      </div>
+      
+      <!-- Summary content (initially hidden) -->
+      <div id="summary-content" class="knugget-content-inner" style="display: none;">
+        <!-- Summary will be loaded here -->
+      </div>
+    </div>
+    
+    <!-- Action buttons -->
+    <div class="knugget-actions">
+      <button id="save-btn" class="knugget-save-btn">Save</button>
+      <button id="dashboard-btn" class="knugget-dashboard-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="3" y1="9" x2="21" y2="9"></line>
+          <line x1="9" y1="21" x2="9" y2="9"></line>
+        </svg>
+        Dashboard
+      </button>
+    </div>
+  </div>
+`;
+
+  // Add the container to the target element
+  targetElement.prepend(knuggetContainer);
+
+  // Setup event listeners for tabs
+  setupTabEventListeners();
+
+  // Load initial content
+  loadAndDisplayTranscript();
+}
 // Import these functions from your contentHandler.js
 
 // Add styles to the page
@@ -575,7 +617,7 @@ export function addStyles() {
   font-weight: 600;
 }
 
-/* Save button */
+/* Save button styling - UPDATED */
 .knugget-save-btn {
   position: absolute;
   bottom: 12px;
@@ -592,11 +634,43 @@ export function addStyles() {
   border-radius: 16px;
   cursor: pointer;
   text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+  transition: all 0.3s ease;
 }
 
-.knugget-save-btn:hover {
+/* Hover state */
+.knugget-save-btn:hover:not(:disabled) {
   opacity: 0.9;
   transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Active/pressed state */
+.knugget-save-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Disabled state */
+.knugget-save-btn:disabled {
+  cursor: default;
+}
+
+/* Saved state */
+.knugget-save-btn.already-saved {
+  background: #2e7d32; /* Green color for saved state */
+  opacity: 0.9;
+}
+
+/* Loading state animation */
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.knugget-save-btn.loading {
+  animation: pulse 1.5s infinite;
+  background: #888;
 }
 
 /* Custom scrollbar */

@@ -2,7 +2,8 @@
 
 /* Base styles */
 .knugget-extension {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
   margin-bottom: 16px;
 }
 
@@ -137,7 +138,7 @@
   color: #00b894;
   font-weight: 600;
   font-size: 12px;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   margin-right: 10px;
   display: inline-block;
   min-width: 50px;
@@ -196,7 +197,7 @@
 }
 
 /* Login button */
-#knugget-login-btn, 
+#knugget-login-btn,
 #save-summary-btn,
 #retry-btn {
   background-color: #00b894;
@@ -323,13 +324,70 @@
   margin-bottom: 16px;
 }
 
+/* Action buttons container */
+.knugget-actions {
+  position: absolute;
+  bottom: 12px;
+  right: 14px;
+  display: flex;
+  gap: 10px;
+}
+
+/* Save button */
+.knugget-save-btn {
+  height: 32px;
+  width: 64px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 177, 0, 1) 0%,
+    rgba(255, 70, 6, 1) 100%
+  );
+  color: #ffffff;
+  font-family: "AirbnbCerealApp-Bold", Helvetica, Arial, sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+.knugget-save-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Dashboard button */
+.knugget-dashboard-btn {
+  height: 32px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #333333;
+  color: #ffffff;
+  font-family: "AirbnbCerealApp-Bold", Helvetica, Arial, sans-serif;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.knugget-dashboard-btn:hover {
+  background: #444444;
+  transform: translateY(-1px);
+}
 /* Media query for dark mode */
 @media (prefers-color-scheme: dark) {
   .knugget-box {
     background-color: #0f0f0f;
     border-color: #2d2d2d;
   }
-  
+
   .segment-text {
     color: #e0e0e0;
   }

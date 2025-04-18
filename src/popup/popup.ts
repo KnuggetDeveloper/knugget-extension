@@ -134,19 +134,40 @@ document.addEventListener("DOMContentLoaded", function () {
    * Check user authentication status
    */
   function checkAuthStatus() {
+    // First check local storage
     chrome.storage.local.get(["knuggetUserInfo"], (result) => {
       if (result.knuggetUserInfo) {
         const userInfo = result.knuggetUserInfo as UserInfo;
 
         // Check if token is expired
         if (userInfo.expiresAt < Date.now()) {
-          showLoginPrompt();
+          console.log("Token expired, checking with background script");
+          // Token is expired, ask background to refresh
+          checkWithBackgroundScript();
           return;
         }
 
         // Show user info
         showUserInfo(userInfo);
       } else {
+        // No user info in storage, check with background script
+        checkWithBackgroundScript();
+      }
+    });
+  }
+
+  /**
+   * Check auth status with background script
+   */
+  function checkWithBackgroundScript() {
+    chrome.runtime.sendMessage({ type: "CHECK_AUTH_STATUS" }, (response) => {
+      if (response && response.isLoggedIn && response.user) {
+        console.log("Background script says user is logged in", response.user);
+        showUserInfo(response.user);
+      } else {
+        console.log("Background script says user is not logged in");
+        // Force background script to check website cookies
+        chrome.runtime.sendMessage({ type: "FORCE_CHECK_WEBSITE_LOGIN" });
         showLoginPrompt();
       }
     });

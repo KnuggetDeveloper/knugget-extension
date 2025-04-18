@@ -1,4 +1,7 @@
-import { loadAndDisplayTranscript, loadAndDisplaySummary } from './contentHandler';
+import {
+  loadAndDisplayTranscript,
+  loadAndDisplaySummary,
+} from "./contentHandler";
 
 // Function to set up panel event listeners
 export function setupPanelEventListeners(): void {
@@ -134,4 +137,32 @@ export function setupMessageListener(): void {
       }
     }
   });
+}
+// Function to set up button event listeners
+export function setupButtonEventListeners(): void {
+  // Settings button listener
+  const settingsButton = document.getElementById("knugget-settings-btn");
+  if (settingsButton) {
+    settingsButton.addEventListener("click", () => {
+      // Open settings page or modal
+      chrome.runtime.sendMessage({ type: "OPEN_SETTINGS" });
+    });
+  }
+
+  // Feedback link listener
+  const feedbackLink = document.getElementById("knugget-feedback");
+  if (feedbackLink) {
+    feedbackLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      chrome.runtime.sendMessage({ type: "OPEN_FEEDBACK" });
+    });
+  }
+
+  // Dashboard button listener
+  const dashboardButton = document.getElementById("dashboard-btn");
+  if (dashboardButton) {
+    dashboardButton.addEventListener("click", () => {
+      chrome.runtime.sendMessage({ type: "OPEN_DASHBOARD" });
+    });
+  }
 }
