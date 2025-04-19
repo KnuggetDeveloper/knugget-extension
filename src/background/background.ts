@@ -88,11 +88,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // Check both storage and cookies
       chrome.storage.local.get(["knuggetUserInfo"], (result) => {
         if (result.knuggetUserInfo) {
-          sendResponse({ isLoggedIn: true, user: result.knuggetUserInfo });
+          // Check if token is expired
+          const userInfo = result.knuggetUserInfo;
+          const now = Date.now();
+
+          if (userInfo.expiresAt && userInfo.expiresAt < now) {
+            console.log("Token expired in storage, checking website");
+            // Don't respond yet, check website first
+            checkLoginFromWebsite().then(() => {
+              // After website check, get the latest user info
+              chrome.storage.local.get(["knuggetUserInfo"], (result) => {
+                if (result.knuggetUserInfo) {
+                  sendResponse({
+                    isLoggedIn: true,
+                    user: result.knuggetUserInfo,
+                  });
+                } else {
+                  sendResponse({ isLoggedIn: false });
+                }
+              });
+            });
+          } else {
+            // Token not expired, send it back
+            sendResponse({ isLoggedIn: true, user: result.knuggetUserInfo });
+          }
         } else {
           // Try to check website login
-          checkLoginFromWebsite();
-          sendResponse({ isLoggedIn: false });
+          checkLoginFromWebsite().then(() => {
+            // After website check, get the latest user info
+            chrome.storage.local.get(["knuggetUserInfo"], (result) => {
+              if (result.knuggetUserInfo) {
+                sendResponse({
+                  isLoggedIn: true,
+                  user: result.knuggetUserInfo,
+                });
+              } else {
+                sendResponse({ isLoggedIn: false });
+              }
+            });
+          });
         }
       });
       return true; // Keep message channel open for async response
@@ -112,8 +146,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === "FORCE_CHECK_WEBSITE_LOGIN") {
       // Force check of website login status
       console.log("Forced check of website login requested");
-      checkLoginFromWebsite();
-      sendResponse({ success: true });
+      checkLoginFromWebsite().then(() => {
+        // Check if we found a token
+        chrome.storage.local.get(["knuggetUserInfo"], (result) => {
+          const isLoggedIn = !!(
+            result.knuggetUserInfo && result.knuggetUserInfo.token
+          );
+          console.log(
+            "Forced website login check completed, isLoggedIn:",
+            isLoggedIn
+          );
+          sendResponse({ success: true, isLoggedIn });
+        });
+      });
       return true;
     }
 
@@ -370,6 +415,12 @@ function broadcastAuthStateChange(isLoggedIn: boolean) {
         });
     }
   });
+
+  // Also refresh all YouTube tabs even if they're not in the activeTabsMap
+  // This ensures that if a user logs in on the website, all YouTube tabs get refreshed
+  if (isLoggedIn) {
+    sendRefreshAuthToAllYouTubeTabs();
+  }
 }
 
 // Listen for messages from web pages
@@ -377,8 +428,7 @@ chrome.runtime.onMessageExternal.addListener(
   (message, sender, sendResponse) => {
     console.log("External message received:", message, "from:", sender.url);
 
-    // Handle AUTH_LOGIN_SUCCESS from website login/signup pages
-    if (message.type === "AUTH_LOGIN_SUCCESS" || message.type === "KNUGGET_AUTH_SUCCESS") {
+    if (message.type === "KNUGGET_AUTH_SUCCESS") {
       // Validate payload
       if (!message.payload) {
         console.error("Empty payload received");
@@ -422,7 +472,7 @@ chrome.runtime.onMessageExternal.addListener(
         expiresAt: new Date(userInfo.expiresAt).toISOString(),
       });
 
-      // Store token and user info
+      // Store Supabase token and user info
       chrome.storage.local.set(
         {
           knuggetUserInfo: userInfo,
@@ -445,6 +495,10 @@ chrome.runtime.onMessageExternal.addListener(
             if (success) {
               // Broadcast auth change to all tabs
               broadcastAuthStateChange(true);
+
+              // IMPROVED: Send a message to all YouTube tabs to refresh their auth state
+              sendRefreshAuthToAllYouTubeTabs();
+
               // Send success response
               sendResponse({ success: true });
             } else {
@@ -458,10 +512,7 @@ chrome.runtime.onMessageExternal.addListener(
       );
 
       return true; // Keep the message channel open for async response
-    } 
-    
-    // Handle KNUGGET_CHECK_AUTH from website
-    else if (message.type === "KNUGGET_CHECK_AUTH") {
+    } else if (message.type === "KNUGGET_CHECK_AUTH") {
       // Check if the user is authenticated and return status
       chrome.storage.local.get(["knuggetUserInfo"], (result) => {
         if (result.knuggetUserInfo) {
@@ -475,15 +526,17 @@ chrome.runtime.onMessageExternal.addListener(
         }
       });
       return true;
-    } 
-    
-    // Handle KNUGGET_LOGOUT from website
-    else if (message.type === "KNUGGET_LOGOUT") {
+    } else if (message.type === "KNUGGET_LOGOUT") {
       // Handle logout request from website
       chrome.storage.local.remove(["knuggetUserInfo"], () => {
         broadcastAuthStateChange(false);
         sendResponse({ success: true });
       });
+      return true;
+    } else if (message.type === "REFRESH_ALL_YOUTUBE_TABS") {
+      console.log("Received request to refresh all YouTube tabs");
+      sendRefreshAuthToAllYouTubeTabs();
+      sendResponse({ success: true });
       return true;
     }
 
@@ -492,6 +545,28 @@ chrome.runtime.onMessageExternal.addListener(
     return true;
   }
 );
+
+/**
+ * Send refresh auth message to all YouTube tabs
+ * This helps synchronize authentication state across tabs
+ */
+function sendRefreshAuthToAllYouTubeTabs() {
+  chrome.tabs.query({ url: "*://*.youtube.com/*" }, (tabs) => {
+    for (const tab of tabs) {
+      if (tab.id) {
+        console.log(`Sending refresh auth message to YouTube tab: ${tab.id}`);
+        chrome.tabs
+          .sendMessage(tab.id, {
+            type: "REFRESH_AUTH_STATE",
+            payload: { forceCheck: true },
+          })
+          .catch((error) => {
+            console.log(`Error sending message to tab ${tab.id}:`, error);
+          });
+      }
+    }
+  });
+}
 
 // Handle messages from content scripts or popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -513,8 +588,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       case "OPEN_LOGIN_PAGE":
         // Open login page in a new tab (include extension ID)
         chrome.tabs.create({
-          url: `${WEBSITE_BASE_URL}/auth/login?source=extension&extensionId=${chrome.runtime.id}${
-            message.payload?.url ? `&referrer=${encodeURIComponent(message.payload.url)}` : ''
+          url: `${WEBSITE_BASE_URL}/auth/login?source=extension&extensionId=${
+            chrome.runtime.id
+          }${
+            message.payload?.url
+              ? `&referrer=${encodeURIComponent(message.payload.url)}`
+              : ""
           }`,
         });
         break;
@@ -563,7 +642,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
         break;
     }
-  } 
+  }
   // Messages from extension pages (popup, etc.)
   else {
     if (message.type === "CHECK_AUTH_STATUS") {
@@ -574,7 +653,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           const userInfo = result.knuggetUserInfo;
           if (userInfo.expiresAt && userInfo.expiresAt < Date.now()) {
             // Token is expired, try to refresh
-            refreshToken(userInfo.token, userInfo.refreshToken || userInfo.token);
+            refreshToken(
+              userInfo.token,
+              userInfo.refreshToken || userInfo.token
+            );
             // Still return what we have for now (refresh will update if needed)
             sendResponse({ isLoggedIn: true, user: userInfo });
           } else {
@@ -589,8 +671,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
       });
       return true; // Keep message channel open for async response
-    } 
-    else if (
+    } else if (
       message.type === "AUTH_LOGIN_SUCCESS" ||
       message.type === "AUTH_SIGNUP_SUCCESS"
     ) {
@@ -603,8 +684,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
       }
       return true;
-    } 
-    else if (message.type === "FORCE_CHECK_WEBSITE_LOGIN") {
+    } else if (message.type === "FORCE_CHECK_WEBSITE_LOGIN") {
       // Force check of website login status
       console.log("Forced check of website login requested");
       checkLoginFromWebsite();
@@ -630,6 +710,10 @@ async function checkLoginFromWebsite() {
       "http://localhost",
     ];
 
+    let foundAuthToken = null;
+    let foundRefreshToken = null;
+    let allCookies: chrome.cookies.Cookie[] = [];
+
     // Check each URL domain for cookies
     for (const url of urlsToCheck) {
       console.log(`Checking cookies for domain: ${url}`);
@@ -643,62 +727,220 @@ async function checkLoginFromWebsite() {
           }
         );
 
+        allCookies = [...allCookies, ...cookies];
         console.log(
           `Found ${cookies.length} cookies for ${url}:`,
           cookies.map((c) => c.name)
         );
 
-        // Look specifically for the authToken cookie
-        const authTokenCookie = cookies.find(c => c.name === "authToken");
-        
-        if (authTokenCookie) {
-          console.log("Found authToken cookie. Syncing to extension storage");
-          
-          // Try to get user info using this token
-          try {
-            const response = await fetch(`${WEBSITE_BASE_URL}/api/auth/me`, {
-              method: "GET",
-              headers: {
-                "Authorization": `Bearer ${authTokenCookie.value}`
-              }
-            });
-            
-            if (response.ok) {
-              const userData = await response.json();
-              
-              // Store user info in extension storage
-              const userInfo = {
-                id: userData.id,
-                email: userData.email,
-                name: userData.name || "",
-                token: authTokenCookie.value,
-                refreshToken: null,
-                expiresAt: Date.now() + 24 * 60 * 60 * 1000, // 24h validity
-                credits: userData.credits || 0,
-                plan: userData.plan || "free",
-              };
-              
-              // Save to extension storage
-              chrome.storage.local.set({ knuggetUserInfo: userInfo }, () => {
-                console.log("User login from website cookie synced to extension storage");
-                broadcastAuthStateChange(true);
-              });
-              
-              return; // Exit early since we found valid authentication
-            }
-          } catch (error) {
-            console.error("Error validating auth token from cookie:", error);
+        // Look for auth token with various possible names
+        const possibleAuthNames = [
+          "authToken",
+          "auth_token",
+          "access_token",
+          "token",
+          "sb-auth-token",
+          "next-auth.session-token",
+          "next-auth-token",
+          "auth-token",
+        ];
+        const possibleRefreshNames = [
+          "refreshToken",
+          "refresh_token",
+          "sb-refresh-token",
+          "refresh-token",
+        ];
+
+        for (const cookie of cookies) {
+          console.log(
+            `Found cookie: ${cookie.name} = ${cookie.value.substring(0, 10)}...`
+          );
+
+          // If cookie name contains any auth-related words
+          if (
+            possibleAuthNames.includes(cookie.name) ||
+            cookie.name.toLowerCase().includes("auth") ||
+            cookie.name.toLowerCase().includes("token") ||
+            cookie.name.toLowerCase().includes("session")
+          ) {
+            console.log(`Potential auth token found in cookie: ${cookie.name}`);
+            foundAuthToken = cookie.value;
           }
+
+          // If cookie name contains any refresh-related words
+          if (
+            possibleRefreshNames.includes(cookie.name) ||
+            cookie.name.toLowerCase().includes("refresh")
+          ) {
+            console.log(
+              `Potential refresh token found in cookie: ${cookie.name}`
+            );
+            foundRefreshToken = cookie.value;
+          }
+        }
+
+        if (foundAuthToken) {
+          console.log("Found auth token, breaking out of domain loop");
+          break;
         }
       } catch (cookieError) {
         console.error(`Error getting cookies for ${url}:`, cookieError);
       }
     }
 
-    // If we get here, we didn't find any valid auth tokens
-    console.log("No valid auth token found in cookies");
-    chrome.storage.local.remove(["knuggetUserInfo"]);
-    broadcastAuthStateChange(false);
+    // Debug all cookies found
+    console.log(
+      "All cookies found across domains:",
+      allCookies.map((c) => c.name)
+    );
+
+    // If no auth token found in cookies, try a direct API call without a token
+    if (!foundAuthToken) {
+      console.log(
+        "No auth token cookie found, trying direct API call with credentials"
+      );
+
+      try {
+        // IMPROVED: Try using credentials in the request to use HTTP-only cookies
+        const response = await fetch(`${WEBSITE_BASE_URL}/api/auth/me`, {
+          method: "GET",
+          credentials: "include", // Important to include cookies
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          console.log("User is logged in via credentials/cookies:", userData);
+
+          // Create a dummy token for extension (we'll use cookie auth)
+          foundAuthToken = "session_token_via_cookies";
+
+          // Store the user info in extension storage
+          const userInfo = {
+            id: userData.id,
+            email: userData.email,
+            name: userData.name || "",
+            token: foundAuthToken,
+            refreshToken: foundRefreshToken || null,
+            expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+            credits: userData.credits || 0,
+            plan: userData.plan || "free",
+          };
+
+          // Save to extension storage
+          chrome.storage.local.set({ knuggetUserInfo: userInfo }, () => {
+            console.log(
+              "User login confirmed via credentials and saved to extension storage"
+            );
+            broadcastAuthStateChange(true);
+          });
+
+          return;
+        } else {
+          console.log("Not logged in via credentials:", response.status);
+
+          // IMPROVED: Check status code to handle specific errors
+          if (response.status === 401 || response.status === 403) {
+            console.log("User is not authenticated on the website");
+          } else {
+            console.log(`Unexpected status code: ${response.status}`);
+          }
+        }
+      } catch (credentialsError) {
+        console.error("Error checking credentials login:", credentialsError);
+      }
+
+      // IMPROVED: Try API endpoint without credentials as a fallback
+      try {
+        console.log("Trying API endpoint without credentials as fallback");
+        const response = await fetch(`${API_BASE_URL}/auth/me`);
+
+        if (response.ok) {
+          const userData = await response.json();
+          console.log(
+            "User appears to be logged in via API endpoint:",
+            userData
+          );
+
+          // Create dummy token
+          foundAuthToken = "api_token_without_credentials";
+
+          // Store user info
+          const userInfo = {
+            id: userData.id,
+            email: userData.email,
+            name: userData.name || "",
+            token: foundAuthToken,
+            refreshToken: foundRefreshToken || null,
+            expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+            credits: userData.credits || 0,
+            plan: userData.plan || "free",
+          };
+
+          chrome.storage.local.set({ knuggetUserInfo: userInfo }, () => {
+            console.log("User login confirmed via API endpoint");
+            broadcastAuthStateChange(true);
+          });
+
+          return;
+        } else {
+          console.log("Not logged in via API endpoint:", response.status);
+        }
+      } catch (apiError) {
+        console.error("Error checking API endpoint login:", apiError);
+      }
+
+      console.log(
+        "No auth token cookie found in any domain and credentials check failed"
+      );
+      broadcastAuthStateChange(false);
+      return;
+    }
+
+    console.log("Found auth token in cookies, checking validity");
+
+    // Fetch the auth/me endpoint from the website to check login status
+    try {
+      const response = await fetch(`${WEBSITE_BASE_URL}/api/auth/me`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${foundAuthToken}`,
+        },
+      });
+
+      if (response.ok) {
+        // User is logged in on the website
+        const userData = await response.json();
+        console.log("User is confirmed logged in:", userData);
+
+        // Store the user info in extension storage
+        const userInfo = {
+          id: userData.id,
+          email: userData.email,
+          name: userData.name || "",
+          token: foundAuthToken,
+          refreshToken: foundRefreshToken || null,
+          expiresAt: Date.now() + 24 * 60 * 60 * 1000, // Assume 24h validity if not specified
+          credits: userData.credits || 0,
+          plan: userData.plan || "free",
+        };
+
+        // Save to extension storage
+        chrome.storage.local.set({ knuggetUserInfo: userInfo }, () => {
+          console.log("User login confirmed and saved to extension storage");
+          broadcastAuthStateChange(true);
+        });
+      } else {
+        console.log(
+          "Auth token invalid or expired, response:",
+          response.status
+        );
+        chrome.storage.local.remove(["knuggetUserInfo"]);
+        broadcastAuthStateChange(false);
+      }
+    } catch (fetchError) {
+      console.error("Network error checking auth:", fetchError);
+      broadcastAuthStateChange(false);
+    }
   } catch (error) {
     console.error("Error checking website login:", error);
     broadcastAuthStateChange(false);

@@ -133,7 +133,7 @@ export async function apiRequest<T>(
   endpoint: string,
   method: string = "GET",
   data?: any,
-  requiresAuth: boolean = true, // CHANGE: Default to true for safer requests
+  requiresAuth: boolean = true, // Default to true for safer requests
   retryCount: number = 1
 ): Promise<ApiResponse<T>> {
   try {
@@ -154,27 +154,54 @@ export async function apiRequest<T>(
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       } else if (requiresAuth) {
-        // Force background to check website cookies
+        // ✅ IMPROVED: More aggressive checking for website login
         console.log(
           "No token found but authentication required. Asking background script to check website login..."
         );
 
-        // Wait for background script to check website login
-        await new Promise<void>((resolve) => {
-          chrome.runtime.sendMessage(
-            { type: "FORCE_CHECK_WEBSITE_LOGIN" },
-            () => {
-              console.log("Forced website login check completed");
-              resolve();
-            }
-          );
-        });
+        // Wait for background script to check website login with timeout
+        const loginCheckResult = await Promise.race([
+          new Promise<boolean>((resolve) => {
+            chrome.runtime.sendMessage(
+              { type: "FORCE_CHECK_WEBSITE_LOGIN" },
+              () => {
+                console.log("Forced website login check completed");
+                // Check if we got a token after the check
+                chrome.storage.local.get(["knuggetUserInfo"], (result) => {
+                  if (result.knuggetUserInfo && result.knuggetUserInfo.token) {
+                    console.log("Token found after background check");
+                    resolve(true);
+                  } else {
+                    console.log("No token found after background check");
+                    resolve(false);
+                  }
+                });
+              }
+            );
+          }),
+          // Add a timeout to ensure we don't wait forever
+          new Promise<boolean>((resolve) => {
+            setTimeout(() => {
+              console.log("Login check timeout reached");
+              resolve(false);
+            }, 3000);
+          }),
+        ]);
 
-        // Check again after background has checked
-        const tokenAfterCheck = await getAuthToken();
-        if (tokenAfterCheck) {
-          console.log("Token found after background check");
-          headers["Authorization"] = `Bearer ${tokenAfterCheck}`;
+        if (loginCheckResult) {
+          // We successfully found a token, get it and proceed
+          const tokenAfterCheck = await getAuthToken();
+          if (tokenAfterCheck) {
+            console.log("Using token found after background check");
+            headers["Authorization"] = `Bearer ${tokenAfterCheck}`;
+          } else {
+            console.warn("Token promised but not delivered");
+            return {
+              success: false,
+              error: "Authentication required. Please log in.",
+              status: 401,
+            };
+          }
         } else {
           // Still no token found
           console.warn(
@@ -195,7 +222,7 @@ export async function apiRequest<T>(
       requestInit.body = JSON.stringify(data);
     }
 
-    // CHANGE: Log request details for debugging
+    // Log request details for debugging
     console.log(`Making API request to: ${API_BASE_URL}${endpoint}`, {
       method,
       requiresAuth,
@@ -211,7 +238,7 @@ export async function apiRequest<T>(
       // Check for token expiration (401)
       if (response.status === 401 && requiresAuth && retryCount > 0) {
         console.log("Token expired, attempting refresh...");
-        // Try to refresh token and retry
+        // ✅ IMPROVED: Try to refresh token and retry
         const refreshedToken = await refreshAndGetToken();
 
         if (refreshedToken) {
@@ -224,6 +251,44 @@ export async function apiRequest<T>(
             requiresAuth,
             retryCount - 1
           );
+        } else {
+          console.log("Token refresh failed, checking website login...");
+
+          // Force background to check website cookies
+          await new Promise<void>((resolve) => {
+            chrome.runtime.sendMessage(
+              { type: "FORCE_CHECK_WEBSITE_LOGIN" },
+              () => {
+                console.log("Forced website login check after refresh failure");
+                resolve();
+              }
+            );
+          });
+
+          // Wait a bit for check to complete
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+
+          // Get token after website check
+          const tokenAfterWebsiteCheck = await getAuthToken();
+          if (tokenAfterWebsiteCheck) {
+            console.log(
+              "Found token after website login check, retrying request"
+            );
+            return apiRequest<T>(
+              endpoint,
+              method,
+              data,
+              requiresAuth,
+              retryCount - 1
+            );
+          } else {
+            // All authentication attempts failed
+            return {
+              success: false,
+              error: "Your session has expired. Please log in again.",
+              status: 401,
+            };
+          }
         }
       }
 

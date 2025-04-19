@@ -77,10 +77,21 @@ export async function loadAndDisplaySummary(): Promise<void> {
   const summaryContentElement = document.getElementById("summary-content");
   if (!summaryContentElement) return;
 
-  // Show loading state
-  showLoading(summaryContentElement, "Generating Summary");
-
   try {
+    // First check auth status BEFORE showing loading
+    console.log("Checking authentication status before starting...");
+    const isUserAuthenticated = await isUserLoggedIn();
+    
+    // IMPORTANT: If not logged in, immediately show login UI and return
+    if (!isUserAuthenticated) {
+      console.log("User not authenticated - showing login required UI");
+      showLoginRequired(summaryContentElement);
+      return;
+    }
+    
+    // Only show loading if user is authenticated
+    showLoading(summaryContentElement, "Generating Summary");
+
     // Get current video ID
     const videoId = new URLSearchParams(window.location.search).get("v") || "";
 
@@ -92,86 +103,6 @@ export async function loadAndDisplaySummary(): Promise<void> {
       currentVideoId = videoId;
       resetContentData(); // Reset data for new video
     }
-
-    console.log("Checking authentication status before generating summary...");
-
-    // Improved auth check with proper awaiting
-    let isLoggedIn = false;
-    
-    // First check if we already have an auth token in storage
-    const initialToken = await getAuthToken();
-    if (initialToken) {
-      console.log("Found valid token in storage");
-      isLoggedIn = true;
-    } else {
-      console.log("No token in storage, forcing website cookie check...");
-      
-      // Force a check with the background script and properly wait for it
-      await new Promise<void>((resolve) => {
-        chrome.runtime.sendMessage({ type: "FORCE_CHECK_WEBSITE_LOGIN" }, () => {
-          console.log("Website cookie check completed");
-          // Give background script time to process and update storage
-          setTimeout(resolve, 1500);
-        });
-      });
-      
-      // Check again after the background script has checked
-      const tokenAfterCheck = await getAuthToken();
-      if (tokenAfterCheck) {
-        console.log("Found token after website cookie check");
-        isLoggedIn = true;
-      } else {
-        console.log("Still no token after website cookie check");
-        
-        // Final attempt - try direct API call with credentials
-        try {
-          console.log("Making direct API call with credentials to check auth...");
-          const response = await fetch("http://localhost:3000/api/auth/me", {
-            method: "GET",
-            credentials: "include", // Include cookies in request
-          });
-
-          if (response.ok) {
-            const userData = await response.json();
-            console.log("User authenticated via direct API call with credentials!");
-            
-            // Manually create auth entry in extension storage
-            const userInfo = {
-              id: userData.id,
-              email: userData.email,
-              name: userData.name || "",
-              token: "session_token_via_direct_api", // Dummy token for cookie auth
-              refreshToken: null,
-              expiresAt: Date.now() + 24 * 60 * 60 * 1000,
-              credits: userData.credits || 0,
-              plan: userData.plan || "free",
-            };
-            
-            // Store in extension storage
-            await new Promise<void>((resolve) => {
-              chrome.storage.local.set({ knuggetUserInfo: userInfo }, () => {
-                console.log("Stored auth info from direct API call");
-                resolve();
-              });
-            });
-            
-            isLoggedIn = true;
-          } else {
-            console.warn("Direct API auth check failed:", response.status);
-          }
-        } catch (error) {
-          console.error("Error during direct API auth check:", error);
-        }
-      }
-    }
-
-    if (!isLoggedIn) {
-      console.warn("User not authenticated — login required");
-      showLoginRequired(summaryContentElement); // Shows login UI or prompt
-      return;
-    }
-
-    console.log("User is authenticated! Proceeding with summary generation...");
 
     // Load transcript if needed
     if (!transcriptData) {
@@ -219,8 +150,25 @@ export async function loadAndDisplaySummary(): Promise<void> {
       channelName,
     });
 
-    if (!summaryResponse.success || !summaryResponse.data) {
+    // Check for authentication errors in response
+    if (!summaryResponse.success) {
+      if (
+        summaryResponse.error?.includes("Authentication required") ||
+        summaryResponse.error?.includes("Unauthorized") ||
+        summaryResponse.error?.includes("not authenticated") ||
+        summaryResponse.error?.includes("Please log in") ||
+        summaryResponse.status === 401
+      ) {
+        console.warn("Authentication error from API:", summaryResponse.error);
+        showLoginRequired(summaryContentElement);
+        return;
+      }
+      
       throw new Error(summaryResponse.error || "Failed to generate summary");
+    }
+
+    if (!summaryResponse.data) {
+      throw new Error("No summary data received");
     }
 
     // Ensure the data structure is valid
@@ -242,6 +190,20 @@ export async function loadAndDisplaySummary(): Promise<void> {
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
+    
+    // Check for authentication errors in the caught error
+    if (
+      errorMessage.includes("Authentication required") ||
+      errorMessage.includes("Unauthorized") ||
+      errorMessage.includes("not authenticated") ||
+      errorMessage.includes("Please log in") ||
+      errorMessage.includes("401")
+    ) {
+      console.warn("Authentication error caught:", errorMessage);
+      showLoginRequired(summaryContentElement);
+      return;
+    }
+    
     console.error("Summary generation error:", errorMessage);
     showError(summaryContentElement, errorMessage, loadAndDisplaySummary);
   }

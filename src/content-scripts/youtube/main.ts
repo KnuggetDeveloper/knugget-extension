@@ -8,7 +8,11 @@ import {
   setupButtonEventListeners,
 } from "./domHandler";
 import { observeYouTubeDOM } from "./domObserver";
-import { loadAndDisplayTranscript, resetContentData } from "./contentHandler";
+import {
+  loadAndDisplaySummary,
+  loadAndDisplayTranscript,
+  resetContentData,
+} from "./contentHandler";
 import { debugAuthStorage } from "./utils";
 
 const UI_ELEMENTS = {
@@ -66,7 +70,61 @@ function processCurrentPage(videoId: string | null): void {
   observeYouTubeDOM();
 }
 
-// Main function to initialize the extension
+/**
+ * Set up additional message listener for auth refresh events
+ * This allows the extension to update its state when the user logs in on the website
+ */
+function setupAuthRefreshListener() {
+  console.log("Setting up auth refresh listener");
+
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === "REFRESH_AUTH_STATE") {
+      console.log("Received auth refresh message:", message);
+
+      // Force auth state refresh
+      if (message.payload?.forceCheck) {
+        chrome.runtime.sendMessage(
+          { type: "FORCE_CHECK_WEBSITE_LOGIN" },
+          () => {
+            console.log(
+              "Forced website login check after external auth refresh"
+            );
+
+            // Check if we're now authenticated
+            chrome.storage.local.get(["knuggetUserInfo"], (result) => {
+              const isLoggedIn = !!(
+                result.knuggetUserInfo && result.knuggetUserInfo.token
+              );
+              console.log(
+                "Auth state after refresh:",
+                isLoggedIn ? "Logged in" : "Not logged in"
+              );
+
+              // Force reload of the current page to update UI
+              if (isLoggedIn) {
+                const videoId = new URLSearchParams(window.location.search).get(
+                  "v"
+                );
+                if (videoId) {
+                  console.log("Reprocessing page for video ID:", videoId);
+                  processCurrentPage(videoId);
+                }
+              }
+            });
+          }
+        );
+      }
+
+      // Always respond to avoid hung message channels
+      sendResponse({ received: true });
+    }
+
+    // Continue message processing for other listeners
+    return true;
+  });
+}
+
+// Call this function during initialization
 function initKnuggetAI(): void {
   console.log("Knugget AI: Initializing extension");
 
@@ -82,15 +140,33 @@ function initKnuggetAI(): void {
   console.log(`Initializing Knugget AI for video ID: ${videoId}`);
 
   // Force check with background script for authentication first
-  chrome.runtime.sendMessage({ type: "FORCE_CHECK_WEBSITE_LOGIN" }, () => {
-    console.log("Sent authentication check to background script");
-  });
+  chrome.runtime.sendMessage(
+    { type: "FORCE_CHECK_WEBSITE_LOGIN" },
+    (response) => {
+      console.log(
+        "Sent authentication check to background script, response:",
+        response
+      );
+
+      // Send a message to request a refresh of all YouTube tabs
+      // This ensures that if the user logged in on the website, all tabs get updated
+      setTimeout(() => {
+        chrome.runtime.sendMessage({
+          type: "AUTH_STATE_CHANGED",
+          payload: { checkAllTabs: true },
+        });
+      }, 1000);
+    }
+  );
 
   // Set up URL change detection only once
   setupURLChangeDetection(handleURLChange);
 
   // Set up message listener for background script
   setupMessageListener();
+
+  // Set up auth refresh listener
+  setupAuthRefreshListener();
 
   // Process the current page
   processCurrentPage(videoId);

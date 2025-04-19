@@ -3,6 +3,10 @@ import {
   loadAndDisplaySummary,
 } from "./contentHandler";
 
+// Track video state and data
+let summaryData: any = null;
+let currentVideoId: string = "";
+
 // Function to set up panel event listeners
 export function setupPanelEventListeners(): void {
   // Tab switching
@@ -63,8 +67,12 @@ export function setupPanelEventListeners(): void {
       summaryContent.classList.remove("hidden");
       transcriptContent.classList.add("hidden");
 
-      // Load summary data if needed
-      loadAndDisplaySummary();
+      // Only load summary data if needed (not already loaded for this video)
+      const videoId =
+        new URLSearchParams(window.location.search).get("v") || "";
+      if (!summaryData || currentVideoId !== videoId) {
+        loadAndDisplaySummary();
+      }
     });
   }
 
@@ -126,7 +134,7 @@ export function setupURLChangeDetection(handleURLChange: () => void): void {
 
 // Setup message listener for background script communication
 export function setupMessageListener(): void {
-  chrome.runtime.onMessage.addListener((message) => {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "AUTH_STATE_CHANGED") {
       // If user logged in or out, refresh the summary tab if it's visible
       const summaryContent = document.getElementById("summary-content");
@@ -135,9 +143,86 @@ export function setupMessageListener(): void {
       if (summaryContent && !summaryContent.classList.contains("hidden")) {
         loadAndDisplaySummary();
       }
+    } else if (message.type === "REFRESH_AUTH_STATE") {
+      console.log("Received auth refresh message:", message);
+
+      // Force auth state refresh
+      if (message.payload?.forceCheck) {
+        chrome.runtime.sendMessage(
+          { type: "FORCE_CHECK_WEBSITE_LOGIN" },
+          (response) => {
+            console.log(
+              "Forced website login check after external auth refresh"
+            );
+
+            // Check if we're now authenticated
+            chrome.storage.local.get(["knuggetUserInfo"], (result) => {
+              const isLoggedIn = !!(
+                result.knuggetUserInfo && result.knuggetUserInfo.token
+              );
+              console.log(
+                "Auth state after refresh:",
+                isLoggedIn ? "Logged in" : "Not logged in"
+              );
+
+              if (isLoggedIn) {
+                // If user is logged in, update UI to show summary tab and reload content
+                console.log("User is now logged in - showing summary tab");
+
+                // Get tab elements
+                const summaryTab = document.getElementById("summary-tab");
+                const transcriptTab = document.getElementById("transcript-tab");
+                const summaryContent =
+                  document.getElementById("summary-content");
+                const transcriptContent =
+                  document.getElementById("transcript-content");
+
+                if (
+                  summaryTab &&
+                  transcriptTab &&
+                  summaryContent &&
+                  transcriptContent
+                ) {
+                  // Update tab styling to show summary tab as active
+                  summaryTab.classList.add(
+                    "bg-gray-900",
+                    "text-white",
+                    "border-teal-500"
+                  );
+                  summaryTab.classList.remove(
+                    "bg-black",
+                    "text-gray-400",
+                    "border-transparent"
+                  );
+                  transcriptTab.classList.remove(
+                    "bg-gray-900",
+                    "text-white",
+                    "border-teal-500"
+                  );
+                  transcriptTab.classList.add(
+                    "bg-black",
+                    "text-gray-400",
+                    "border-transparent"
+                  );
+
+                  // Show summary, hide transcript
+                  summaryContent.classList.remove("hidden");
+                  transcriptContent.classList.add("hidden");
+
+                  // Always reload the summary when auth state changes to logged in
+                  loadAndDisplaySummary();
+                }
+              }
+            });
+          }
+        );
+      }
+
+      if (sendResponse) sendResponse({ received: true });
     }
   });
 }
+
 // Function to set up button event listeners
 export function setupButtonEventListeners(): void {
   // Settings button listener
