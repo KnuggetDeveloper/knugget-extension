@@ -59,6 +59,9 @@ export function showError(
 }
 
 // Function to show login required state for summary tab
+// Update the showLoginRequired function in src/content-scripts/youtube/ui.ts
+// to improve the "Sync with Website" button logic
+
 export function showLoginRequired(summaryContentElement: HTMLElement) {
   summaryContentElement.innerHTML = `
     <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center;">
@@ -83,6 +86,7 @@ export function showLoginRequired(summaryContentElement: HTMLElement) {
         <button id="knugget-sync-btn" style="background: #2a2a2a; color: #ffffff; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; padding: 8px 16px; border: 1px solid #555; border-radius: 20px; cursor: pointer; width: 100%;">
           Sync with Website
         </button>
+        <div id="sync-status" style="font-family: 'Inter', sans-serif; font-size: 12px; color: #aaaaaa; text-align: center; margin-top: 8px; display: none;"></div>
       </div>
     </div>
   `;
@@ -93,35 +97,107 @@ export function showLoginRequired(summaryContentElement: HTMLElement) {
   const syncBtn = document.getElementById(
     "knugget-sync-btn"
   ) as HTMLButtonElement;
+  const syncStatus = document.getElementById("sync-status") as HTMLDivElement;
 
   if (loginBtn) {
     loginBtn.addEventListener("click", () => {
-      chrome.runtime.sendMessage({ type: "OPEN_LOGIN_PAGE" });
+      // Get current URL to include as extensionId parameter
+      const currentUrl = encodeURIComponent(window.location.href);
+
+      // Send message to open login page with extension ID
+      chrome.runtime.sendMessage({
+        type: "OPEN_LOGIN_PAGE",
+        payload: {
+          extensionId: chrome.runtime.id, // Include extension ID in payload
+          url: currentUrl,
+        },
+      });
     });
   }
 
   if (signupBtn) {
     signupBtn.addEventListener("click", () => {
+      // Get current URL to include as referrer parameter
+      const currentUrl = encodeURIComponent(window.location.href);
+
+      // Send message to open signup page with extension ID and referrer
       chrome.runtime.sendMessage({
         type: "OPEN_SIGNUP_PAGE",
-        payload: { url: window.location.href },
+        payload: {
+          url: currentUrl,
+          extensionId: chrome.runtime.id, // Include extension ID in payload
+        },
       });
     });
   }
 
-  if (syncBtn) {
-    syncBtn.addEventListener("click", () => {
+  if (syncBtn && syncStatus) {
+    syncBtn.addEventListener("click", async () => {
       // Show syncing state
       syncBtn.textContent = "Syncing...";
       syncBtn.disabled = true;
+      syncStatus.style.display = "block";
+      syncStatus.textContent = "Checking website login...";
+      syncStatus.style.color = "#aaaaaa";
 
-      // Force background to check cookies and reload after a delay
-      chrome.runtime.sendMessage({ type: "FORCE_CHECK_WEBSITE_LOGIN" }, () => {
+      try {
+        // Multi-step sync process with proper awaiting
+
+        // Step 1: Force background to check website cookies
+        await new Promise<void>((resolve) => {
+          chrome.runtime.sendMessage(
+            { type: "FORCE_CHECK_WEBSITE_LOGIN" },
+            () => {
+              syncStatus.textContent = "Website login check completed";
+              setTimeout(resolve, 1000); // Wait for storage updates
+            }
+          );
+        });
+
+        // Step 2: Check if auth was successful by verifying storage
+        const authSuccess = await new Promise<boolean>((resolve) => {
+          chrome.storage.local.get(["knuggetUserInfo"], (result) => {
+            if (result.knuggetUserInfo && result.knuggetUserInfo.token) {
+              syncStatus.textContent = "Authentication found!";
+              syncStatus.style.color = "#4caf50"; // Green
+              resolve(true);
+            } else {
+              syncStatus.textContent =
+                "No authentication found. Try logging in again.";
+              syncStatus.style.color = "#f44336"; // Red
+              resolve(false);
+            }
+          });
+        });
+
+        // Step 3: Handle success or failure
+        if (authSuccess) {
+          // Success - reload content after a brief delay to show the success message
+          syncBtn.textContent = "Sync Successful!";
+          setTimeout(() => {
+            // Reload summary panel after sync
+            loadAndDisplaySummary();
+          }, 1500);
+        } else {
+          // No authentication found - reset button after delay
+          syncBtn.textContent = "Sync Failed";
+          setTimeout(() => {
+            syncBtn.textContent = "Sync with Website";
+            syncBtn.disabled = false;
+          }, 3000);
+        }
+      } catch (error) {
+        console.error("Error during sync:", error);
+        syncStatus.textContent = "Error occurred during sync";
+        syncStatus.style.color = "#f44336"; // Red
+        syncBtn.textContent = "Sync Error";
+
+        // Reset button after delay
         setTimeout(() => {
-          // Reload summary panel after sync attempt
-          loadAndDisplaySummary();
-        }, 2000);
-      });
+          syncBtn.textContent = "Sync with Website";
+          syncBtn.disabled = false;
+        }, 3000);
+      }
     });
   }
 }
